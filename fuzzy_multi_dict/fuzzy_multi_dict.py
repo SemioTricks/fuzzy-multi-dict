@@ -44,7 +44,7 @@ class FuzzyMultiDict:
         max_mistakes_number = self.__max_mistakes_number
 
         node, position = self.__apply_string(node=self.__prefix_tree, s=key, position=0)
-        if position == len(key) and node.get("value"):
+        if position == len(key) and node.get("value") is not None:
             return [
                 {"value": node["value"], "key": key, "mistakes": list()},
             ]
@@ -240,13 +240,10 @@ class FuzzyMultiDict:
             return list()
 
         __min_n_mistakes = min([len(x["mistakes"]) for x in result.values()])
-        return sorted(
-            [x for x in result.values() if len(x["mistakes"]) == __min_n_mistakes],
-            key=lambda x: x["key"],
-        )
+        return [x for x in result.values() if len(x["mistakes"]) == __min_n_mistakes]
 
     def __check_value(self, node, key, position, mistakes, result) -> Optional[dict]:
-        if position == len(key) and node.get("value"):
+        if position == len(key) and node.get("value") is not None:
             __result_row = result.get(node["path"])
             if __result_row is None or len(__result_row["mistakes"] > len(mistakes)):
                 return {
