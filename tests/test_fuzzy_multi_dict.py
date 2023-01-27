@@ -12,8 +12,12 @@ def test_get_key_with_mistakes():
     d["third"] = 3
 
     assert d["first"] == 1
-    assert d["frs"] == 1
-    assert d["rs"] == 1
+    assert d["frst"] == 1  # missing symbol
+    assert d["forst"] == 1  # wrong symbol
+    assert d["fiirst"] == 1  # extra symbol
+    assert d["frs"] == 1  # more than 1 mistake
+    assert d["tirsf"] == 1  # more than 2 mistake
+    assert d["rs"] == 1  # more than 2 mistake
 
     r = d.get("frst")
     assert len(r) == 1
@@ -53,7 +57,7 @@ def test_set_dict():
     d["first"] = {"x": 1, "y": 2, "z": 3}
     d["second"] = [1, 2, 3]
     d["third"] = 3
-    print(d["first"].get("x"))
+
     assert d.get("first") is not None
     assert d["first"].get("x") is not None
     assert d["first"]["x"] == 1
@@ -101,3 +105,23 @@ def test_custom_upd_value():
 
     d["first"] = {"z": 5}
     assert d["first"]["z"] == [3, 4, 5]
+
+
+def test_get_key_with_sim():
+    d = FuzzyMultiDict(max_mistakes_number=3)
+
+    d["on"] = 1
+    d["one"] = 2
+    d["ones"] = 3
+
+    r = d.get("on")
+    assert len(r) == 1
+    assert r[0]["value"] == 1
+
+    r = d.get("one")
+    assert len(r) == 1
+    assert r[0]["value"] == 2
+
+    r = d.get("ones")
+    assert len(r) == 1
+    assert r[0]["value"] == 3
