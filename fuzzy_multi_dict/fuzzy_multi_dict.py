@@ -343,7 +343,3 @@ class FuzzyMultiDict:
                     "mistakes": mistakes,
                 }
         return None
-
-    @property
-    def prefix_tree(self):
-        return self.__prefix_tree
