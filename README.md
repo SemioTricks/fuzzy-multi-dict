@@ -1,4 +1,4 @@
-# Fuzzy Multi Dict
+# fuzzy-multi-dict
 
 [![Coverage Status](https://img.shields.io/badge/%20Python%20Versions-%3E%3D3.9-informational)](https://pypi.org/project/fuzzy_multi_dict/)
 [![Coverage Status](https://coveralls.io/repos/github/SemioTricks/fuzzy-multi-dict/badge.svg?branch=feature/initial)](https://coveralls.io/github/SemioTricks/fuzzy-multi-dict?branch=feature/initial)
@@ -15,11 +15,11 @@ and accessing information by a string key.
 **Multi**: flexible functionality for updating data on an existing key.
 
 
-### Installation
+# Installation
 
 > pip install fuzzy_multi_dict
 
-## Examples
+# Quickstart
 
 Module can be used as a fast enough (due to the tree structure of data storage)
 spell-checker.
