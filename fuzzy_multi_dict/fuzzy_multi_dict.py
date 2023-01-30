@@ -3,11 +3,18 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 class FuzzyMultiDict:
     def __init__(
-        self, max_mistakes_number: int = 2, update_value_func: Optional[Callable] = None
+        self,
+        max_mistakes_number: int = 2,
+        max_mistakes_number_part: Optional[float] = None,
+        update_value_func: Optional[Callable] = None,
     ):
         """
-        :param max_mistakes_number: default value of maximum number of corrections
+        :param int max_mistakes_number: default value of maximum number of corrections
                in the query key when searching for a matching dictionary key
+        :param Optional[float] max_mistakes_number_part: default value to calculate
+               maximum number of corrections in the query key when searching
+               for a matching dictionary key;
+               calculated as round(max_mistakes_number_part * token_length)
         :param update_value_func: merge function for value
                when storing a new value with a key
 
@@ -18,6 +25,7 @@ class FuzzyMultiDict:
             "data": None,
         }
         self.__max_mistakes_number = max_mistakes_number
+        self.__max_mistakes_number_part = max_mistakes_number_part
         self.__update_value = (
             (lambda x, y: y) if update_value_func is None else update_value_func
         )
@@ -43,7 +51,11 @@ class FuzzyMultiDict:
         __node["value"] = self.__update_value(__node.get("value"), value)  # type: ignore  # noqa
 
     def get(
-        self, key: str, max_mistakes_number: Optional[int] = None
+        self,
+        key: str,
+        max_mistakes_number: Optional[int] = None,
+        max_mistakes_number_part: Optional[float] = None,
+        extract_all: bool = False,
     ) -> List[Dict[Any, Any]]:
         """
         Extracting the value given the `key`
@@ -51,6 +63,14 @@ class FuzzyMultiDict:
         :param key: dictionary key
         :param int max_mistakes_number: maximum number of corrections in the query key
                when searching for a matching dictionary key
+        :param max_mistakes_number_part: value to calculate maximum number
+               of corrections in the query key when searching for a matching
+               dictionary key;  if not None - `max_mistakes_number` will be ignored;
+               calculated as round(max_mistakes_number_part * token_length);
+        :param bool extract_all: if True - all existing keys that can be obtained
+               from the request by fixing no more than `max_mistakes_number` mistakes
+               will be returned
+
         :return List[Dict[Any, Any]]:
             [
                 {
@@ -62,15 +82,22 @@ class FuzzyMultiDict:
             ]
 
         """
-        max_mistakes_number = max_mistakes_number or self.__max_mistakes_number
+        max_mistakes_number_part = (
+            max_mistakes_number_part or self.__max_mistakes_number_part
+        )
+        if max_mistakes_number_part:
+            max_mistakes_number = round(len(key) * max_mistakes_number_part)
+        else:
+            max_mistakes_number = max_mistakes_number or self.__max_mistakes_number
 
         node, position = self.__apply_string(node=self.__prefix_tree, s=key, position=0)
-        if position == len(key) and node.get("value") is not None:
-            return [
-                {"value": node["value"], "key": key, "mistakes": list()},
-            ]
 
         result = dict()  # type: Dict[Any, Any]
+        if position == len(key) and node.get("value") is not None:
+            result = {key: {"value": node["value"], "key": key, "mistakes": list()}}
+            if not extract_all:
+                return self.__prepare_result(result, extract_all=extract_all)
+
         rows_to_process = [
             (position, key[:position], node, list()),
             (0, "", self.__prefix_tree, list()),
@@ -82,11 +109,11 @@ class FuzzyMultiDict:
             for (position, path, node, mistakes) in rows_to_process:
 
                 res_row__ = self.__check_value(
-                    node, path, key, position, mistakes, result
+                    node, path, key, position, mistakes, result, extract_all
                 )
                 if res_row__:
                     result[path] = res_row__
-                    if len(mistakes) < max_mistakes_number:
+                    if len(mistakes) < max_mistakes_number and not extract_all:
                         max_mistakes_number = len(mistakes)
                     continue
 
@@ -120,7 +147,7 @@ class FuzzyMultiDict:
 
             rows_to_process = rows_to_process__
 
-        return self.__prepare_result(result)
+        return self.__prepare_result(result, extract_all=extract_all)
 
     def __getitem__(self, key: str) -> Dict[str, Any]:
         """
@@ -242,7 +269,7 @@ class FuzzyMultiDict:
         __node, __position = self.__apply_string(
             node=node, s=key, position=position + 1
         )
-        __path = path + key[position + 1 : position]
+        __path = path + key[position + 1 : __position]
 
         __processed = processed.get((__position, __path))
         if __processed is None or __processed > len(__mistakes):
@@ -286,22 +313,37 @@ class FuzzyMultiDict:
         return rows_to_process__
 
     @staticmethod
-    def __prepare_result(result: Dict[str, Dict[Any, Any]]) -> List[Dict[Any, Any]]:
+    def __prepare_result(
+        result: Dict[str, Dict[Any, Any]], extract_all: bool
+    ) -> List[Dict[Any, Any]]:
 
         if not len(result):
             return list()
+
+        if extract_all:
+            return sorted(result.values(), key=lambda x: len(x["mistakes"]))
 
         __min_n_mistakes = min([len(x["mistakes"]) for x in result.values()])
         return [x for x in result.values() if len(x["mistakes"]) == __min_n_mistakes]
 
     @staticmethod
-    def __check_value(node, path, key, position, mistakes, result) -> Optional[dict]:
-        if position == len(key) and node.get("value"):
+    def __check_value(
+        node, path, key, position, mistakes, result, extract_all
+    ) -> Optional[dict]:
+        if position == len(key) and node.get("value") is not None:
             __result_row = result.get(path)
-            if __result_row is None or len(__result_row["mistakes"]) > len(mistakes):
+            if (
+                __result_row is None
+                or extract_all
+                or len(__result_row["mistakes"]) > len(mistakes)
+            ):
                 return {
                     "value": node["value"],
                     "key": path,
                     "mistakes": mistakes,
                 }
         return None
+
+    @property
+    def prefix_tree(self):
+        return self.__prefix_tree
