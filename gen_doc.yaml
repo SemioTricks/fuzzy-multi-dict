@@ -6,7 +6,7 @@ PROJECT:
   # Repository URL
   repository: "https://github.com/SemioTricks/fuzzy-multi-dict"
   # Project version
-  release: "0.0.1"
+  release: "0.0.3"
 AUTHOR:
   # Author full info
   author: "Tetiana Lytvynenko, Denis Shchutskyi"
@@ -25,7 +25,7 @@ OPTIONS:
   # If not specified, the documentation will be saved where the command was called from
   path_to_root_folder: "./fuzzy_multi_dict"
   extract_with_same_hierarchy: True
-  overwrite_if_file_exists: False
+  overwrite_if_file_exists: True
   # If not specified, the documentation will be saved where the command was called from
   path_to_save: "./docs"
   # File name to save the documentation
