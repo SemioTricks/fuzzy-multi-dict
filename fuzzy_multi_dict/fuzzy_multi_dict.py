@@ -7,16 +7,20 @@ class FuzzyMultiDict:
         max_corrections: Optional[int] = 2,
         max_corrections_relative: Optional[float] = None,
         update_value_func: Optional[Callable] = None,
+        sort_key: Optional[Callable] = None,
     ):
         """
         :param int max_corrections: default value of maximum number of corrections
-               in the query key when searching for a matching dictionary key
+               in the query key when searching for a matching dictionary key;
+               default = 2
         :param Optional[float] max_corrections_relative: default value to calculate
                maximum number of corrections in the query key when searching
-               for a matching dictionary key;
+               for a matching dictionary key; default = None
                calculated as round(max_corrections_relative * token_length)
-        :param update_value_func: merge function for value
-               when storing a new value with a key
+        :param Optional[Callable] update_value_func: merge function for value
+               when storing a new value with a key; default = None
+        :param Optional[Callable] sort_key: key for sorting values founded by query;
+               default = None
 
         """
         self.__prefix_tree = {
@@ -28,6 +32,9 @@ class FuzzyMultiDict:
         self.__max_corrections_relative = max_corrections_relative
         self.__update_value = (
             (lambda x, y: y) if update_value_func is None else update_value_func
+        )
+        self.__sort_key = (
+            lambda x: len(x["correction"]) if sort_key is None else sort_key
         )
 
     def __setitem__(self, key: str, value: Any):
@@ -396,21 +403,19 @@ class FuzzyMultiDict:
 
         return rows_to_process__
 
-    @staticmethod
-    def __prepare_result(
-        result: Dict[str, Dict[Any, Any]], extract_all: bool
-    ) -> List[Dict[Any, Any]]:
+    def __prepare_result(self, result: dict, extract_all: bool) -> list:
 
         if not len(result):
             return list()
 
         if extract_all:
-            return sorted(result.values(), key=lambda x: len(x["correction"]))
+            return sorted(result.values(), key=self.__sort_key)  # type: ignore
 
         __min_n_correction = min([len(x["correction"]) for x in result.values()])
-        return [
-            x for x in result.values() if len(x["correction"]) == __min_n_correction
-        ]
+        return sorted(
+            [x for x in result.values() if len(x["correction"]) == __min_n_correction],
+            key=self.__sort_key,  # type: ignore
+        )
 
     @staticmethod
     def __check_value(
