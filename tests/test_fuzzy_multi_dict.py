@@ -25,6 +25,44 @@ def test_get_key_with_mistakes():
     assert len(r[0]["mistakes"]) == 1
 
 
+def test_max_mistakes_number():
+
+    d = FuzzyMultiDict(max_mistakes_number=1)
+
+    d["first"] = 1
+    d["second"] = 2
+    d["third"] = 3
+
+    assert len(d.get("firstt")) > 0
+    assert len(d.get("firstttt")) == 0
+    assert len(d.get("firstttt", max_mistakes_number=3)) > 0
+    assert len(d.get("firstttt", max_mistakes_number_part=0.5)) > 0
+
+    d = FuzzyMultiDict(max_mistakes_number=None, max_mistakes_number_part=None)
+
+    d["first"] = 1
+    d["second"] = 2
+    d["third"] = 3
+
+    assert len(d.get("firstt")) == 0
+    assert len(d.get("firstt", max_mistakes_number=1)) > 0
+    assert len(d.get("firstt", max_mistakes_number_part=0.5)) > 0
+
+
+def test_transposition():
+
+    d = FuzzyMultiDict(max_mistakes_number=3)
+
+    d["first"] = 1
+    d["second"] = 2
+    d["third"] = 3
+
+    r = d.get("ifrst")
+    assert len(r) == 1
+    assert r[0]["value"] == 1
+    assert len(r[0]["mistakes"]) == 1
+
+
 def test_get_key_with_alts():
     d = FuzzyMultiDict(max_mistakes_number=3)
 

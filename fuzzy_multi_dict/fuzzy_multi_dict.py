@@ -4,7 +4,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 class FuzzyMultiDict:
     def __init__(
         self,
-        max_mistakes_number: int = 2,
+        max_mistakes_number: Optional[int] = 2,
         max_mistakes_number_part: Optional[float] = None,
         update_value_func: Optional[Callable] = None,
     ):
@@ -82,13 +82,9 @@ class FuzzyMultiDict:
             ]
 
         """
-        max_mistakes_number_part = (
-            max_mistakes_number_part or self.__max_mistakes_number_part
+        max_mistakes_number = self.__get_max_mistakes_number(
+            len(key), max_mistakes_number, max_mistakes_number_part
         )
-        if max_mistakes_number_part:
-            max_mistakes_number = round(len(key) * max_mistakes_number_part)
-        else:
-            max_mistakes_number = max_mistakes_number or self.__max_mistakes_number
 
         node, position = self.__apply_string(node=self.__prefix_tree, s=key, position=0)
 
@@ -138,6 +134,13 @@ class FuzzyMultiDict:
                     )
                     rows_to_process__.extend(
                         self.__wrong_symbol(
+                            node, path, key, position, processed, mistakes
+                        )
+                    )
+
+                if position + 1 < len(key):
+                    rows_to_process__.extend(
+                        self.__apply_transposition(
                             node, path, key, position, processed, mistakes
                         )
                     )
@@ -214,6 +217,57 @@ class FuzzyMultiDict:
                 if __processed is None or __processed > len(mistakes):
                     rows_to_process__.append((__position, __path, __node, mistakes))
                     processed[(__position, __path)] = len(mistakes)
+
+        return rows_to_process__
+
+    def __apply_transposition(
+        self,
+        node: dict,
+        path: str,
+        key: str,
+        position: int,
+        processed: dict,
+        mistakes: list,
+    ) -> list:
+
+        rows_to_process__: List[tuple] = list()
+
+        if position + 1 >= len(key):
+            return rows_to_process__
+
+        if (
+            key[position + 1] in node["children"].keys()
+            and key[position] in node["children"][key[position + 1]]["children"].keys()
+        ):
+            __node = node["children"][key[position + 1]]["children"][key[position]]
+            __path = path + key[position + 1] + key[position]
+            __processed = processed.get((position + 2, __path))
+            __mistakes = mistakes + [
+                {
+                    "mistake_type": f"transposition of symbols "
+                    f'"{key[position: position+2]}"',
+                    "position": position,
+                },
+            ]
+
+            if __processed is None or __processed > len(__mistakes):
+                rows_to_process__.append((position + 2, __path, __node, __mistakes))
+                processed[(position + 2, __path)] = len(__mistakes)
+
+            __node, __position = self.__apply_string(
+                node=__node, s=key, position=position + 2
+            )
+            __path = (
+                path
+                + path
+                + key[position + 1]
+                + key[position]
+                + key[position + 2 : __position]
+            )
+            __processed = processed.get((__position, __path))
+            if __processed is None or __processed > len(__mistakes):
+                rows_to_process__.append((__position, __path, __node, __mistakes))
+                processed[(__position, __path)] = len(__mistakes)
 
         return rows_to_process__
 
@@ -343,3 +397,19 @@ class FuzzyMultiDict:
                     "mistakes": mistakes,
                 }
         return None
+
+    def __get_max_mistakes_number(
+        self,
+        n: int,
+        max_mistakes_number: Optional[int],
+        max_mistakes_number_part: Optional[float],
+    ) -> int:
+        if max_mistakes_number_part is not None:
+            return round(max_mistakes_number_part * n)
+        if max_mistakes_number is not None:
+            return max_mistakes_number
+        if self.__max_mistakes_number_part is not None:
+            return round(self.__max_mistakes_number_part * n)
+        if self.__max_mistakes_number is not None:
+            return self.__max_mistakes_number
+        return 0
