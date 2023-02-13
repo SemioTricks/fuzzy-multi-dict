@@ -4,19 +4,23 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 class FuzzyMultiDict:
     def __init__(
         self,
-        max_mistakes_number: int = 2,
-        max_mistakes_number_part: Optional[float] = None,
+        max_corrections: Optional[int] = 2,
+        max_corrections_relative: Optional[float] = None,
         update_value_func: Optional[Callable] = None,
+        sort_key: Optional[Callable] = None,
     ):
         """
-        :param int max_mistakes_number: default value of maximum number of corrections
-               in the query key when searching for a matching dictionary key
-        :param Optional[float] max_mistakes_number_part: default value to calculate
+        :param int max_corrections: default value of maximum number of corrections
+               in the query key when searching for a matching dictionary key;
+               default = 2
+        :param Optional[float] max_corrections_relative: default value to calculate
                maximum number of corrections in the query key when searching
-               for a matching dictionary key;
-               calculated as round(max_mistakes_number_part * token_length)
-        :param update_value_func: merge function for value
-               when storing a new value with a key
+               for a matching dictionary key; default = None
+               calculated as round(max_corrections_relative * token_length)
+        :param Optional[Callable] update_value_func: merge function for value
+               when storing a new value with a key; default = None
+        :param Optional[Callable] sort_key: key for sorting values founded by query;
+               default = None
 
         """
         self.__prefix_tree = {
@@ -24,10 +28,13 @@ class FuzzyMultiDict:
             "children": dict(),
             "data": None,
         }
-        self.__max_mistakes_number = max_mistakes_number
-        self.__max_mistakes_number_part = max_mistakes_number_part
+        self.__max_corrections = max_corrections
+        self.__max_corrections_relative = max_corrections_relative
         self.__update_value = (
             (lambda x, y: y) if update_value_func is None else update_value_func
+        )
+        self.__sort_key = (
+            lambda x: len(x["correction"]) if sort_key is None else sort_key
         )
 
     def __setitem__(self, key: str, value: Any):
@@ -52,23 +59,23 @@ class FuzzyMultiDict:
 
     def get(
         self,
-        key: str,
-        max_mistakes_number: Optional[int] = None,
-        max_mistakes_number_part: Optional[float] = None,
+        query: str,
+        max_corrections: Optional[int] = None,
+        max_corrections_relative: Optional[float] = None,
         extract_all: bool = False,
     ) -> List[Dict[Any, Any]]:
         """
-        Extracting the value given the `key`
+        Extracting the value given the `query`
 
-        :param key: dictionary key
-        :param int max_mistakes_number: maximum number of corrections in the query key
+        :param query: query to search for dictionary key
+        :param int max_corrections: maximum number of corrections in the query key
                when searching for a matching dictionary key
-        :param max_mistakes_number_part: value to calculate maximum number
+        :param max_corrections_relative: value to calculate maximum number
                of corrections in the query key when searching for a matching
-               dictionary key;  if not None - `max_mistakes_number` will be ignored;
-               calculated as round(max_mistakes_number_part * token_length);
+               dictionary key;  if not None - `max_corrections` will be ignored;
+               calculated as round(max_corrections_relative * token_length);
         :param bool extract_all: if True - all existing keys that can be obtained
-               from the request by fixing no more than `max_mistakes_number` mistakes
+               from the request by fixing no more than `max_corrections` correction
                will be returned
 
         :return List[Dict[Any, Any]]:
@@ -76,69 +83,78 @@ class FuzzyMultiDict:
                 {
                     "value": <dictionary value>,
                     "key": <dictionary key; may differ from the query key>
-                    "mistakes": <list of correction in the query key>
+                    "correction": <list of correction in the query key>
                 },
                 ...
             ]
 
         """
-        max_mistakes_number_part = (
-            max_mistakes_number_part or self.__max_mistakes_number_part
+        max_corrections = self.__get_max_corrections(
+            len(query), max_corrections, max_corrections_relative
         )
-        if max_mistakes_number_part:
-            max_mistakes_number = round(len(key) * max_mistakes_number_part)
-        else:
-            max_mistakes_number = max_mistakes_number or self.__max_mistakes_number
 
-        node, position = self.__apply_string(node=self.__prefix_tree, s=key, position=0)
+        node, position = self.__apply_string(
+            node=self.__prefix_tree, s=query, position=0
+        )
 
         result = dict()  # type: Dict[Any, Any]
-        if position == len(key) and node.get("value") is not None:
-            result = {key: {"value": node["value"], "key": key, "mistakes": list()}}
+        if position == len(query) and node.get("value") is not None:
+            result = {
+                query: {"value": node["value"], "key": query, "correction": list()}
+            }
             if not extract_all:
                 return self.__prepare_result(result, extract_all=extract_all)
 
         rows_to_process = [
-            (position, key[:position], node, list()),
+            (position, query[:position], node, list()),
             (0, "", self.__prefix_tree, list()),
         ]  # type: List[Tuple[int, str, Dict[Any,Any], List[Any]]]
         processed = {(pos, path): 0 for (pos, path, _, __) in rows_to_process}
 
         while True:
             rows_to_process__ = list()
-            for (position, path, node, mistakes) in rows_to_process:
+            for (position, path, node, correction) in rows_to_process:
 
                 res_row__ = self.__check_value(
-                    node, path, key, position, mistakes, result, extract_all
+                    node, path, query, position, correction, result, extract_all
                 )
                 if res_row__:
                     result[path] = res_row__
-                    if len(mistakes) < max_mistakes_number and not extract_all:
-                        max_mistakes_number = len(mistakes)
+                    if len(correction) < max_corrections and not extract_all:
+                        max_corrections = len(correction)
                     continue
 
                 rows_to_process__.extend(
-                    self.__no_mistakes(node, path, key, position, processed, mistakes)
-                )
-
-                if len(mistakes) >= max_mistakes_number:
-                    continue
-
-                rows_to_process__.extend(
-                    self.__missing_symbol(
-                        node, path, key, position, processed, mistakes
+                    self.__apply_as_is(
+                        node, path, query, position, processed, correction
                     )
                 )
 
-                if position < len(key):
+                if len(correction) >= max_corrections:
+                    continue
+
+                rows_to_process__.extend(
+                    self.__apply_insertion(
+                        node, path, query, position, processed, correction
+                    )
+                )
+
+                if position < len(query):
                     rows_to_process__.extend(
-                        self.__extra_symbol(
-                            node, path, key, position, processed, mistakes
+                        self.__apply_deletion(
+                            node, path, query, position, processed, correction
                         )
                     )
                     rows_to_process__.extend(
-                        self.__wrong_symbol(
-                            node, path, key, position, processed, mistakes
+                        self.__apply_substitution(
+                            node, path, query, position, processed, correction
+                        )
+                    )
+
+                if position + 1 < len(query):
+                    rows_to_process__.extend(
+                        self.__apply_transposition(
+                            node, path, query, position, processed, correction
                         )
                     )
 
@@ -149,23 +165,23 @@ class FuzzyMultiDict:
 
         return self.__prepare_result(result, extract_all=extract_all)
 
-    def __getitem__(self, key: str) -> Dict[str, Any]:
+    def __getitem__(self, query: str) -> Dict[str, Any]:
         """
-        Extracting the value given the `key`
+        Extracting the value given the `query`
 
-        :param key: dictionary key
-        :return Any: first found dictionary value
+        :param query: query to search for dictionary key
+        :return Any: first found by `query` dictionary value
 
         """
-        if not isinstance(key, str):
-            raise TypeError(f"Invalid key type: expect str; got {type(key)}")
+        if not isinstance(query, str):
+            raise TypeError(f"Invalid key type: expect str; got {type(query)}")
 
-        value = self.get(key)
+        value = self.get(query)
 
         if len(value):
             return value[0]["value"]
 
-        raise KeyError(key)
+        raise KeyError(query)
 
     @staticmethod
     def __apply_string(node: dict, s: str, position: int) -> Tuple[Dict[Any, Any], int]:
@@ -183,14 +199,14 @@ class FuzzyMultiDict:
 
         return node, position + sub_position
 
-    def __no_mistakes(
+    def __apply_as_is(
         self,
         node: dict,
         path: str,
         key: str,
         position: int,
         processed: dict,
-        mistakes: list,
+        correction: list,
     ) -> list:
         __node_children = node["children"].keys()
         __has_children = len(__node_children) > 0
@@ -202,22 +218,82 @@ class FuzzyMultiDict:
             if __node:
                 __path = path + key[position]
                 __processed = processed.get((position + 1, __path))
-                if __processed is None or __processed > len(mistakes):
-                    rows_to_process__.append((position + 1, __path, __node, mistakes))
-                    processed[(position + 1, __path)] = len(mistakes)
+                if __processed is None or __processed > len(correction):
+                    rows_to_process__.append((position + 1, __path, __node, correction))
+                    processed[(position + 1, __path)] = len(correction)
 
                 __node, __position = self.__apply_string(
                     node=node, s=key, position=position
                 )
                 __path = path + key[position:__position]
                 __processed = processed.get((__position, __path))
-                if __processed is None or __processed > len(mistakes):
-                    rows_to_process__.append((__position, __path, __node, mistakes))
-                    processed[(__position, __path)] = len(mistakes)
+                if __processed is None or __processed > len(correction):
+                    rows_to_process__.append((__position, __path, __node, correction))
+                    processed[(__position, __path)] = len(correction)
 
         return rows_to_process__
 
-    def __missing_symbol(self, node, path, key, position, processed, mistakes) -> list:
+    def __apply_transposition(
+        self,
+        node: dict,
+        path: str,
+        query: str,
+        position: int,
+        processed: dict,
+        correction: list,
+    ) -> list:
+
+        rows_to_process__: List[tuple] = list()
+
+        if position + 1 >= len(query):
+            return rows_to_process__
+
+        if (
+            query[position + 1] in node["children"].keys()
+            and query[position]
+            in node["children"][query[position + 1]]["children"].keys()
+        ):
+            __node = node["children"][query[position + 1]]["children"][query[position]]
+            __path = path + query[position + 1] + query[position]
+            __processed = processed.get((position + 2, __path))
+            __correction = correction + [
+                {
+                    "correction": f"transposition of symbols "
+                    f'"{query[position: position+2]}"',
+                    "position": position,
+                },
+            ]
+
+            if __processed is None or __processed > len(__correction):
+                rows_to_process__.append((position + 2, __path, __node, __correction))
+                processed[(position + 2, __path)] = len(__correction)
+
+            __node, __position = self.__apply_string(
+                node=__node, s=query, position=position + 2
+            )
+            __path = (
+                path
+                + path
+                + query[position + 1]
+                + query[position]
+                + query[position + 2 : __position]
+            )
+            __processed = processed.get((__position, __path))
+            if __processed is None or __processed > len(__correction):
+                rows_to_process__.append((__position, __path, __node, __correction))
+                processed[(__position, __path)] = len(__correction)
+
+        return rows_to_process__
+
+    def __apply_insertion(
+        self,
+        node: dict,
+        path: str,
+        query: str,
+        position: int,
+        processed: dict,
+        correction: list,
+    ) -> list:
 
         rows_to_process__: List[Tuple[int, str, dict, list]] = list()
 
@@ -230,65 +306,80 @@ class FuzzyMultiDict:
         for __c in __node_children:
             __node = node["children"][__c]
             __path = path + __c
-            __mistakes = mistakes + [
+            __correction = correction + [
                 {
-                    "mistake_type": f'missing symbol "{__c}"',
+                    "correction": f'insertion of "{__c}"',
                     "position": position,
                 },
             ]
             __processed = processed.get((position, __path))
-            if __processed is None or __processed > len(__mistakes):
-                rows_to_process__.append((position, __path, __node, __mistakes))
-                processed[(position, __path)] = len(__mistakes)
+            if __processed is None or __processed > len(__correction):
+                rows_to_process__.append((position, __path, __node, __correction))
+                processed[(position, __path)] = len(__correction)
 
             __node, __position = self.__apply_string(
-                node=__node, s=key, position=position
+                node=__node, s=query, position=position
             )
-            __path = path + __c + key[position:__position]
+            __path = path + __c + query[position:__position]
             __processed = processed.get((__position, __path))
-            if __processed is None or __processed > len(__mistakes):
-                rows_to_process__.append((__position, __path, __node, __mistakes))
-                processed[(__position, __path)] = len(__mistakes)
+            if __processed is None or __processed > len(__correction):
+                rows_to_process__.append((__position, __path, __node, __correction))
+                processed[(__position, __path)] = len(__correction)
 
         return rows_to_process__
 
-    def __extra_symbol(self, node, path, key, position, processed, mistakes) -> list:
+    def __apply_deletion(
+        self,
+        node: dict,
+        path: str,
+        query: str,
+        position: int,
+        processed: dict,
+        correction: list,
+    ) -> list:
         rows_to_process__ = list()
-        __mistakes = mistakes + [
+        __correction = correction + [
             {
-                "mistake_type": f'extra symbol "{key[position]}"',
+                "correction": f'deletion of "{query[position]}"',
                 "position": position,
             },
         ]
 
         __processed = processed.get((position + 1, path))
-        if __processed is None or __processed > len(__mistakes):
-            rows_to_process__.append((position + 1, path, node, __mistakes))
-            processed[(position + 1, path)] = len(__mistakes)
+        if __processed is None or __processed > len(__correction):
+            rows_to_process__.append((position + 1, path, node, __correction))
+            processed[(position + 1, path)] = len(__correction)
 
         __node, __position = self.__apply_string(
-            node=node, s=key, position=position + 1
+            node=node, s=query, position=position + 1
         )
-        __path = path + key[position + 1 : __position]
+        __path = path + query[position + 1 : __position]
 
         __processed = processed.get((__position, __path))
-        if __processed is None or __processed > len(__mistakes):
-            rows_to_process__.append((__position, __path, __node, __mistakes))
-            processed[(__position, __path)] = len(__mistakes)
+        if __processed is None or __processed > len(__correction):
+            rows_to_process__.append((__position, __path, __node, __correction))
+            processed[(__position, __path)] = len(__correction)
         return rows_to_process__
 
-    def __wrong_symbol(self, node, path, key, position, processed, mistakes) -> list:
+    def __apply_substitution(
+        self,
+        node: dict,
+        path: str,
+        query: str,
+        position: int,
+        processed: dict,
+        correction: list,
+    ) -> list:
         rows_to_process__ = list()
 
         __node_children = node["children"].keys()
 
         for __c in __node_children:
-            if __c == key[position]:
+            if __c == query[position]:
                 continue
-            __mistakes = mistakes + [
+            __correction = correction + [
                 {
-                    "mistake_type": f'wrong symbol "{key[position]}": '
-                    f'replaced on "{__c}"',
+                    "correction": f'substitution "{query[position]}" for "{__c}"',
                     "position": position,
                 },
             ]
@@ -296,50 +387,72 @@ class FuzzyMultiDict:
             __path = path + __c
 
             __processed = processed.get((position + 1, __path))
-            if __processed is None or __processed > len(__mistakes):
-                rows_to_process__.append((position + 1, __path, __node, __mistakes))
-                processed[(position + 1, __path)] = len(__mistakes)
+            if __processed is None or __processed > len(__correction):
+                rows_to_process__.append((position + 1, __path, __node, __correction))
+                processed[(position + 1, __path)] = len(__correction)
 
             __node, __position = self.__apply_string(
-                node=__node, s=key, position=position + 1
+                node=__node, s=query, position=position + 1
             )
-            __path = path + __c + key[position + 1 : __position]
+            __path = path + __c + query[position + 1 : __position]
 
             __processed = processed.get((__position, __path))
-            if __processed is None or __processed > len(__mistakes):
-                rows_to_process__.append((__position, __path, __node, __mistakes))
-                processed[(__position, __path)] = len(__mistakes)
+            if __processed is None or __processed > len(__correction):
+                rows_to_process__.append((__position, __path, __node, __correction))
+                processed[(__position, __path)] = len(__correction)
 
         return rows_to_process__
 
-    @staticmethod
-    def __prepare_result(
-        result: Dict[str, Dict[Any, Any]], extract_all: bool
-    ) -> List[Dict[Any, Any]]:
+    def __prepare_result(self, result: dict, extract_all: bool) -> list:
 
         if not len(result):
             return list()
 
         if extract_all:
-            return sorted(result.values(), key=lambda x: len(x["mistakes"]))
+            return sorted(result.values(), key=self.__sort_key)  # type: ignore
 
-        __min_n_mistakes = min([len(x["mistakes"]) for x in result.values()])
-        return [x for x in result.values() if len(x["mistakes"]) == __min_n_mistakes]
+        __min_n_correction = min([len(x["correction"]) for x in result.values()])
+        return sorted(
+            [x for x in result.values() if len(x["correction"]) == __min_n_correction],
+            key=self.__sort_key,  # type: ignore
+        )
 
     @staticmethod
     def __check_value(
-        node, path, key, position, mistakes, result, extract_all
+        node: dict,
+        path: str,
+        query: str,
+        position: int,
+        correction: list,
+        result: dict,
+        extract_all: bool,
     ) -> Optional[dict]:
-        if position == len(key) and node.get("value") is not None:
+        if position == len(query) and node.get("value") is not None:
             __result_row = result.get(path)
             if (
                 __result_row is None
                 or extract_all
-                or len(__result_row["mistakes"]) > len(mistakes)
+                or len(__result_row["correction"]) > len(correction)
             ):
                 return {
                     "value": node["value"],
                     "key": path,
-                    "mistakes": mistakes,
+                    "correction": correction,
                 }
         return None
+
+    def __get_max_corrections(
+        self,
+        n: int,
+        max_corrections: Optional[int],
+        max_corrections_relative: Optional[float],
+    ) -> int:
+        if max_corrections_relative is not None:
+            return round(max_corrections_relative * n)
+        if max_corrections is not None:
+            return max_corrections
+        if self.__max_corrections_relative is not None:
+            return round(self.__max_corrections_relative * n)
+        if self.__max_corrections is not None:
+            return self.__max_corrections
+        return 0
