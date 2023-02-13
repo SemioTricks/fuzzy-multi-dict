@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "fuzzy-multi-dict"
-version = "0.0.3"
-description = ""
+version = "0.0.4"
+description = "`fuzzy-multi-dict` is a module that provides a hight-flexible structure for storing and accessing information by a string key."
 authors = [ "Tetiana Lytvynenko <lytvynenkotv@gmail.com>", "Denis Shchutskyi <denisshchutskyi@gmail.com>"]
 license = "LICENSE"
 readme = "README.md"
