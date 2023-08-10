@@ -44,7 +44,7 @@ class FuzzyMultiDict:
             pickle.dump(file=f, obj=self.__prefix_tree)
 
     def load(self, filename: str):
-        with open(filename, 'wb') as f:
+        with open(filename, 'rb') as f:
             self.__prefix_tree = pickle.load(file=f)
 
     def __setitem__(self, key: str, value: Any):
