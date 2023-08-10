@@ -1,15 +1,14 @@
-from typing import Any, Callable, Dict, List, Optional, Tuple
 import pickle
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
 class FuzzyMultiDict:
-
     def __init__(
-            self,
-            max_corrections: Optional[int] = 2,
-            max_corrections_relative: Optional[float] = None,
-            update_value_func: Optional[Callable] = None,
-            sort_key: Optional[Callable] = None,
+        self,
+        max_corrections: Optional[int] = 2,
+        max_corrections_relative: Optional[float] = None,
+        update_value_func: Optional[Callable] = None,
+        sort_key: Optional[Callable] = None,
     ):
         """
         :param int max_corrections: default value of maximum number of corrections
@@ -40,11 +39,11 @@ class FuzzyMultiDict:
         )
 
     def save(self, filename: str):
-        with open(filename, 'wb') as f:
+        with open(filename, "wb") as f:
             pickle.dump(file=f, obj=self.__prefix_tree)
 
     def load(self, filename: str):
-        with open(filename, 'rb') as f:
+        with open(filename, "rb") as f:
             self.__prefix_tree = pickle.load(file=f)
 
     def __setitem__(self, key: str, value: Any):
@@ -65,16 +64,17 @@ class FuzzyMultiDict:
                 }
             __node = __node["children"][c]  # type: ignore
 
-        __node["value"] = self.__update_value(__node.get("value"),
-                                              value)  # type: ignore  # noqa
+        __node["value"] = self.__update_value(
+            __node.get("value"), value
+        )  # type: ignore  # noqa
 
     def __get(
-            self,
-            query: str,
-            max_corrections: Optional[int] = None,
-            max_corrections_relative: Optional[float] = None,
-            extract_all: bool = False,
-            extract_leaves: bool = False
+        self,
+        query: str,
+        max_corrections: Optional[int] = None,
+        max_corrections_relative: Optional[float] = None,
+        extract_all: bool = False,
+        extract_leaves: bool = False,
     ) -> List[Dict[Any, Any]]:
         """
         Extracting the value and search result given the `query`
@@ -119,17 +119,17 @@ class FuzzyMultiDict:
                     "value": node["value"],
                     "key": query,
                     "correction": list(),
-                    "leaves": list()
+                    "leaves": list(),
                 }
             }
             if extract_leaves:
-                result[query]['leaves'] = self.__get_node_leaves(node, query)
+                result[query]["leaves"] = self.__get_node_leaves(node, query)
 
             if not extract_all:
                 return self.__prepare_result(
                     result=result,
                     extract_all=extract_all,
-                    extract_leaves=extract_leaves
+                    extract_leaves=extract_leaves,
                 )
 
         rows_to_process = [
@@ -143,13 +143,22 @@ class FuzzyMultiDict:
             for (position, path, node, correction) in rows_to_process:
 
                 res_row__ = self.__check_value(
-                    node, path, query, position, correction, result, extract_all,
-                    extract_leaves
+                    node,
+                    path,
+                    query,
+                    position,
+                    correction,
+                    result,
+                    extract_all,
+                    extract_leaves,
                 )
                 if res_row__:
                     result[path] = res_row__
-                    if res_row__['value'] is not None \
-                            and len(correction) < max_corrections and not extract_all:
+                    if (
+                        res_row__["value"] is not None
+                        and len(correction) < max_corrections
+                        and not extract_all
+                    ):
                         max_corrections = len(correction)
                         continue
 
@@ -193,14 +202,15 @@ class FuzzyMultiDict:
             rows_to_process = rows_to_process__
 
         return self.__prepare_result(
-            result=result, extract_all=extract_all, extract_leaves=extract_leaves)
+            result=result, extract_all=extract_all, extract_leaves=extract_leaves
+        )
 
     def get(
-            self,
-            query: str,
-            max_corrections: Optional[int] = None,
-            max_corrections_relative: Optional[float] = None,
-            extract_all: bool = False,
+        self,
+        query: str,
+        max_corrections: Optional[int] = None,
+        max_corrections_relative: Optional[float] = None,
+        extract_all: bool = False,
     ) -> List[Dict[Any, Any]]:
         """
         Extracting the value given the `query`
@@ -232,7 +242,7 @@ class FuzzyMultiDict:
             max_corrections=max_corrections,
             max_corrections_relative=max_corrections_relative,
             extract_all=extract_all,
-            extract_leaves=False
+            extract_leaves=False,
         )
 
     def search(self, query: str, topn: int = 10) -> List[Any]:
@@ -247,21 +257,22 @@ class FuzzyMultiDict:
         """
         __result = self.__get(
             query=query,
-            max_corrections_relative=1.,
+            max_corrections_relative=1.0,
             extract_all=True,
-            extract_leaves=True)
+            extract_leaves=True,
+        )
 
         top = list()
-        __processed = dict()
+        __processed = dict()  # type: Dict[Any, Any]
         for v in __result:
-            if v.get('value') and not __processed.get(v['value']):
-                top.append(v['value'])
-                __processed[v['value']] = True
+            if v.get("value") and not __processed.get(v["value"]):
+                top.append(v["value"])
+                __processed[v["value"]] = True
                 if len(top) >= topn:
                     return top
 
-            if v['leaves']:
-                for k, x in v['leaves']:
+            if v["leaves"]:
+                for k, x in v["leaves"]:
                     if not __processed.get(x):
                         top.append(x)
                         __processed[x] = True
@@ -305,13 +316,13 @@ class FuzzyMultiDict:
         return node, position + sub_position
 
     def __apply_as_is(
-            self,
-            node: dict,
-            path: str,
-            key: str,
-            position: int,
-            processed: dict,
-            correction: list,
+        self,
+        node: dict,
+        path: str,
+        key: str,
+        position: int,
+        processed: dict,
+        correction: list,
     ) -> list:
         __node_children = node["children"].keys()
         __has_children = len(__node_children) > 0
@@ -339,13 +350,13 @@ class FuzzyMultiDict:
         return rows_to_process__
 
     def __apply_transposition(
-            self,
-            node: dict,
-            path: str,
-            query: str,
-            position: int,
-            processed: dict,
-            correction: list,
+        self,
+        node: dict,
+        path: str,
+        query: str,
+        position: int,
+        processed: dict,
+        correction: list,
     ) -> list:
 
         rows_to_process__: List[tuple] = list()
@@ -354,9 +365,9 @@ class FuzzyMultiDict:
             return rows_to_process__
 
         if (
-                query[position + 1] in node["children"].keys()
-                and query[position]
-                in node["children"][query[position + 1]]["children"].keys()
+            query[position + 1] in node["children"].keys()
+            and query[position]
+            in node["children"][query[position + 1]]["children"].keys()
         ):
             __node = node["children"][query[position + 1]]["children"][query[position]]
             __path = path + query[position + 1] + query[position]
@@ -364,7 +375,7 @@ class FuzzyMultiDict:
             __correction = correction + [
                 {
                     "correction": f"transposition of symbols "
-                                  f'"{query[position: position + 2]}"',
+                    f'"{query[position: position + 2]}"',
                     "position": position,
                 },
             ]
@@ -377,11 +388,11 @@ class FuzzyMultiDict:
                 node=__node, s=query, position=position + 2
             )
             __path = (
-                    path
-                    + path
-                    + query[position + 1]
-                    + query[position]
-                    + query[position + 2: __position]
+                path
+                + path
+                + query[position + 1]
+                + query[position]
+                + query[position + 2 : __position]
             )
             __processed = processed.get((__position, __path))
             if __processed is None or __processed > len(__correction):
@@ -391,13 +402,13 @@ class FuzzyMultiDict:
         return rows_to_process__
 
     def __apply_insertion(
-            self,
-            node: dict,
-            path: str,
-            query: str,
-            position: int,
-            processed: dict,
-            correction: list,
+        self,
+        node: dict,
+        path: str,
+        query: str,
+        position: int,
+        processed: dict,
+        correction: list,
     ) -> list:
 
         rows_to_process__: List[Tuple[int, str, dict, list]] = list()
@@ -434,13 +445,13 @@ class FuzzyMultiDict:
         return rows_to_process__
 
     def __apply_deletion(
-            self,
-            node: dict,
-            path: str,
-            query: str,
-            position: int,
-            processed: dict,
-            correction: list,
+        self,
+        node: dict,
+        path: str,
+        query: str,
+        position: int,
+        processed: dict,
+        correction: list,
     ) -> list:
         rows_to_process__ = list()
         __correction = correction + [
@@ -458,7 +469,7 @@ class FuzzyMultiDict:
         __node, __position = self.__apply_string(
             node=node, s=query, position=position + 1
         )
-        __path = path + query[position + 1: __position]
+        __path = path + query[position + 1 : __position]
 
         __processed = processed.get((__position, __path))
         if __processed is None or __processed > len(__correction):
@@ -467,13 +478,13 @@ class FuzzyMultiDict:
         return rows_to_process__
 
     def __apply_substitution(
-            self,
-            node: dict,
-            path: str,
-            query: str,
-            position: int,
-            processed: dict,
-            correction: list,
+        self,
+        node: dict,
+        path: str,
+        query: str,
+        position: int,
+        processed: dict,
+        correction: list,
     ) -> list:
         rows_to_process__ = list()
 
@@ -499,7 +510,7 @@ class FuzzyMultiDict:
             __node, __position = self.__apply_string(
                 node=__node, s=query, position=position + 1
             )
-            __path = path + __c + query[position + 1: __position]
+            __path = path + __c + query[position + 1 : __position]
 
             __processed = processed.get((__position, __path))
             if __processed is None or __processed > len(__correction):
@@ -509,10 +520,11 @@ class FuzzyMultiDict:
         return rows_to_process__
 
     def __prepare_result(
-            self, result: dict, extract_all: bool, extract_leaves: bool) -> list:
+        self, result: dict, extract_all: bool, extract_leaves: bool
+    ) -> list:
 
         if not extract_leaves:
-            result = {k: v for k, v in result.items() if v['value'] is not None}
+            result = {k: v for k, v in result.items() if v["value"] is not None}
 
         if not len(result):
             return list()
@@ -528,15 +540,15 @@ class FuzzyMultiDict:
         )
 
     def __check_value(
-            self,
-            node: dict,
-            path: str,
-            query: str,
-            position: int,
-            correction: list,
-            result: dict,
-            extract_all: bool,
-            extract_leaves: bool
+        self,
+        node: dict,
+        path: str,
+        query: str,
+        position: int,
+        correction: list,
+        result: dict,
+        extract_all: bool,
+        extract_leaves: bool,
     ) -> Optional[dict]:
 
         if position != len(query):
@@ -546,29 +558,29 @@ class FuzzyMultiDict:
             "value": None,
             "key": path,
             "correction": correction,
-            "leaves": list()
-        }
+            "leaves": list(),
+        }  # type: Dict[str, Any]
 
         if node.get("value") is not None:
             __result_row = result.get(path)
             if (
-                    __result_row is None
-                    or extract_all
-                    or len(__result_row["correction"]) > len(correction)
+                __result_row is None
+                or extract_all
+                or len(__result_row["correction"]) > len(correction)
             ):
                 result_value["value"] = node["value"]
                 result_value["correction"] = correction
 
         if extract_leaves:
-            result_value['leaves'] = self.__get_node_leaves(node, path)
+            result_value["leaves"] = self.__get_node_leaves(node, path)
 
         return result_value
 
     def __get_max_corrections(
-            self,
-            n: int,
-            max_corrections: Optional[int],
-            max_corrections_relative: Optional[float],
+        self,
+        n: int,
+        max_corrections: Optional[int],
+        max_corrections_relative: Optional[float],
     ) -> int:
         if max_corrections_relative is not None:
             return round(max_corrections_relative * n)
@@ -580,13 +592,13 @@ class FuzzyMultiDict:
             return self.__max_corrections
         return 0
 
-    def __get_node_leaves(self, node: dict, path: str = '') -> List[Any]:
+    def __get_node_leaves(self, node: dict, path: str = "") -> List[Any]:
 
         leaves = list()
-        for x, __node in node['children'].items():
+        for x, __node in node["children"].items():
 
-            if __node.get('value'):
-                leaves.append((path + x, __node['value']))
+            if __node.get("value"):
+                leaves.append((path + x, __node["value"]))
             leaves.extend(self.__get_node_leaves(__node, path + x))
 
         return leaves
