@@ -3,7 +3,7 @@
 [![Coverage Status](https://img.shields.io/badge/%20Python%20Versions-%3E%3D3.9-informational)](https://pypi.org/project/fuzzy_multi_dict/)
 [![Coverage Status](https://coveralls.io/repos/github/SemioTricks/fuzzy-multi-dict/badge.svg?branch=feature/initial)](https://coveralls.io/github/SemioTricks/fuzzy-multi-dict?branch=feature/initial)
 
-[![Coverage Status](https://img.shields.io/badge/Version-0.0.4-informational)](https://pypi.org/project/fuzzy_multi_dict/)
+[![Coverage Status](https://img.shields.io/badge/Version-0.0.5-informational)](https://pypi.org/project/fuzzy_multi_dict/)
 [![Coverage Status](https://img.shields.io/badge/Docs-passed-green)](https://github.com/SemioTricks/fuzzy-multi-dict/tree/main/docs)
 
 **fuzzy-multi-dict** is a module that provides a hight-flexible structure for storing 
@@ -31,7 +31,7 @@ from fuzzy_multi_dict import FuzzyMultiDict
 with open('big_text.txt', 'r') as f:
     words = list(set(re.findall(r'[a-z]+', f.read().lower())))
     
-vocab = FuzzyMultiDict(max_mistakes_number=3)
+vocab = FuzzyMultiDict(max_corrections=3)
 for word in words:
     vocab[word] = word
     
@@ -70,7 +70,7 @@ def update_value(x, y):
     return x
 
 phone_book = FuzzyMultiDict(
-    max_mistakes_number=3, 
+    max_corrections=3, 
     update_value_func=update_value
 )
 
@@ -84,4 +84,32 @@ phone_book['Adam']
 # {'phone': ['890-1234', '234-5678'],
 #  'organization': 'work',
 #  'address': 'baker street 221b'}
+```
+
+It can also be used for indexing data and fuzzy-search.
+
+```python
+from fuzzy_multi_dict import FuzzyMultiDict
+
+d = FuzzyMultiDict()
+
+d["apple"] = "apple"
+d["apple red delicious"] = "apple red delicious"
+d["apple fuji"] = "apple fuji"
+d["apple granny smith"] = "apple granny smith"
+d["apple honeycrisp"] = "apple honeycrisp"
+d["apple golden delicious"] = "apple golden delicious"
+d["apple pink lady"] = "apple pink lady"
+
+d.get("apple") 
+# [{'value': 'apple', 'key': 'apple', 'correction': [], 'leaves': []}]
+
+d.search("apple") 
+# ['apple', 'apple red delicious', 'apple fuji', 'apple granny smith',
+#  'apple golden delicious', 'apple honeycrisp', 'apple pink lady']
+
+d.search("apl") 
+# ['apple', 'apple red delicious', 'apple fuji', 'apple granny smith', 
+#  'apple golden delicious', 'apple honeycrisp', 'apple pink lady']
+
 ```

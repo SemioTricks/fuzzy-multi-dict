@@ -204,3 +204,19 @@ def test_get_key_with_sim():
     r = d.get("ones")
     assert len(r) == 1
     assert r[0]["value"] == 3
+
+
+def test_search():
+    d = FuzzyMultiDict(max_corrections=3)
+
+    d["apple"] = "apple"
+    d["apple red delicious"] = "apple red delicious"
+    d["apple fuji"] = "apple fuji"
+    d["apple granny smith"] = "apple granny smith"
+    d["apple honeycrisp"] = "apple honeycrisp"
+    d["apple golden delicious"] = "apple golden delicious"
+    d["apple pink lady"] = "apple pink lady"
+
+    assert len(d.get("apple")) == 1
+    assert len(d.search("apple")) > 1
+    assert len(d.search("apl")) > 1
