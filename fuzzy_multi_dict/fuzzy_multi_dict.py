@@ -265,16 +265,16 @@ class FuzzyMultiDict:
         top = list()
         __processed = dict()  # type: Dict[Any, Any]
         for v in __result:
-            if v.get("value") and not __processed.get(v["value"]):
-                top.append(v["value"])
-                __processed[v["value"]] = True
+            if v.get('value') and not __processed.get(v['value']):
+                top.append({'value': v['value'], 'key': v['key'], "correction": v["correction"], "is_leaf": False})
+                __processed[v['value']] = True
                 if len(top) >= topn:
                     return top
 
             if v["leaves"]:
                 for k, x in v["leaves"]:
                     if not __processed.get(x):
-                        top.append(x)
+                        top.append({'value': x, 'key': v['key'], "correction": v["correction"], "is_leaf": True})
                         __processed[x] = True
                         if len(top) >= topn:
                             return top
