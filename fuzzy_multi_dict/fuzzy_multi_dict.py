@@ -270,7 +270,7 @@ class FuzzyMultiDict:
                 __processed[v['value']] = True
                 if len(top) >= topn:
                     return top
-
+        for v in __result:
             if v["leaves"]:
                 for k, x in v["leaves"]:
                     if not __processed.get(x):
