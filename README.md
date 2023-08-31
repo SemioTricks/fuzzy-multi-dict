@@ -31,7 +31,7 @@ from fuzzy_multi_dict import FuzzyMultiDict
 with open('big_text.txt', 'r') as f:
     words = list(set(re.findall(r'[a-z]+', f.read().lower())))
     
-vocab = FuzzyMultiDict(max_corrections=3)
+vocab = FuzzyMultiDict(max_corrections_value=2/3)
 for word in words:
     vocab[word] = word
     
@@ -69,10 +69,7 @@ def update_value(x, y):
             
     return x
 
-phone_book = FuzzyMultiDict(
-    max_corrections=3, 
-    update_value_func=update_value
-)
+phone_book = FuzzyMultiDict(max_corrections_value=3, update_value=update_value)
 
 phone_book['Mom'] = {'phone': '123-4567', 'organization': 'family'}
 phone_book['Adam'] = {'phone': '890-1234', 'organization': 'work'}
