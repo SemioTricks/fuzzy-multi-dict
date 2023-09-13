@@ -15,6 +15,12 @@
  > when storing a new value with a key; default = None
  > + `sort_key`: Optional[Callable] - key for sorting values founded by query;
  > default = None
+ > ## Function  `save`
+ > ### Argument(s)
+ > + `filename`: str - empty doc string
+ > ## Function  `load`
+ > ### Argument(s)
+ > + `filename`: str - empty doc string
  > ## Function  `__setitem__`
  > ```text
  > Storing the `value` with the `key`
@@ -23,6 +29,25 @@
  > ### Argument(s)
  > + `key`: str - empty doc string
  > + `value`: Any - empty doc string
+ > ## Function  `__get`
+ > ```text
+ > Extracting the value and search result given the `query`
+ > ```
+ > 
+ > ### Argument(s)
+ > + `query`: str - query to search for dictionary key
+ > + `max_corrections`: Optional[int] - maximum number of corrections in the query key
+ > when searching for a matching dictionary key
+ > + `max_corrections_relative`: Optional[float] - value to calculate maximum number
+ > of corrections in the query key when searching for a matching
+ > dictionary key;  if not None - `max_corrections` will be ignored;
+ > calculated as round(max_corrections_relative * token_length);
+ > + `extract_all`: bool - if True - all existing keys that can be obtained
+ > from the request by fixing no more than `max_corrections` correction
+ > will be returned
+ > + `extract_leaves`: bool - if True - all node leaves from found will
+ > be returned; used for searching
+ > #### Declared returns: `List[Dict[Any, Any]]`
  > ## Function  `get`
  > ```text
  > Extracting the value given the `query`
@@ -40,6 +65,15 @@
  > from the request by fixing no more than `max_corrections` correction
  > will be returned
  > #### Declared returns: `List[Dict[Any, Any]]`
+ > ## Function  `search`
+ > ```text
+ > Searching the values starts as given the `query`
+ > ```
+ > 
+ > ### Argument(s)
+ > + `query`: str - query to search
+ > + `topn`: int - only to n search results will be returned
+ > #### Declared returns: `List[Any]`
  > ## Function  `__getitem__`
  > ```text
  > Extracting the value given the `query`
@@ -105,10 +139,9 @@
  > ### Argument(s)
  > + `result`: dict - empty doc string
  > + `extract_all`: bool - empty doc string
+ > + `extract_leaves`: bool - empty doc string
  > #### Declared returns: `list`
  > ## Function  `__check_value`
- > ### Decorator(s)
- > + staticmethod
  > ### Argument(s)
  > + `node`: dict - empty doc string
  > + `path`: str - empty doc string
@@ -117,6 +150,7 @@
  > + `correction`: list - empty doc string
  > + `result`: dict - empty doc string
  > + `extract_all`: bool - empty doc string
+ > + `extract_leaves`: bool - empty doc string
  > #### Declared returns: `Optional[dict]`
  > ## Function  `__get_max_corrections`
  > ### Argument(s)
@@ -124,3 +158,8 @@
  > + `max_corrections`: Optional[int] - empty doc string
  > + `max_corrections_relative`: Optional[float] - empty doc string
  > #### Declared returns: `int`
+ > ## Function  `__get_node_leaves`
+ > ### Argument(s)
+ > + `node`: dict - empty doc string
+ > + `path`: str - empty doc string
+ > #### Declared returns: `List[Any]`
