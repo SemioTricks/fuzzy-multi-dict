@@ -1,22 +1,22 @@
 import re
+
 from fuzzy_multi_dict import FuzzyMultiDict
 
-
-with open('big.txt', 'r') as f:
+with open("big.txt", "r") as f:
     text = f.read()
-    words = list(set(re.findall(r'[a-z]+', text.lower())))
+    words = list(set(re.findall(r"[a-z]+", text.lower())))
 
-vocab = FuzzyMultiDict(max_mistakes_number=3)
+vocab = FuzzyMultiDict(max_corrections_relative=2 / 3)
 for word in words:
     vocab[word] = word
 
-print(vocab['responsibilities'])
+print(vocab["responsibilities"])
 # 'responsibilities'
 
-print(vocab['espansibillities'])
+print(vocab["espansibillities"])
 # 'responsibilities'
 
-print(vocab.get('espansibillities'))
+print(vocab.get("espansibillities"))
 # [{'value': 'responsibilities',
 #   'key': 'responsibilities',
 #   'mistakes': [{'mistake_type': 'missing symbol "r"', 'position': 0},
