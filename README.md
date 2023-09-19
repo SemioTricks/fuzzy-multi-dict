@@ -3,7 +3,7 @@
 [![Coverage Status](https://img.shields.io/badge/%20Python%20Versions-%3E%3D3.9-informational)](https://pypi.org/project/fuzzy_multi_dict/)
 [![Coverage Status](https://coveralls.io/repos/github/SemioTricks/fuzzy-multi-dict/badge.svg?branch=feature/initial)](https://coveralls.io/github/SemioTricks/fuzzy-multi-dict?branch=feature/initial)
 
-[![Coverage Status](https://img.shields.io/badge/Version-0.0.5-informational)](https://pypi.org/project/fuzzy_multi_dict/)
+[![Coverage Status](https://img.shields.io/badge/Version-0.0.7-informational)](https://pypi.org/project/fuzzy_multi_dict/)
 [![Coverage Status](https://img.shields.io/badge/Docs-passed-green)](https://github.com/SemioTricks/fuzzy-multi-dict/tree/main/docs)
 
 **fuzzy-multi-dict** is a module that provides a hight-flexible structure for storing 
@@ -31,7 +31,7 @@ from fuzzy_multi_dict import FuzzyMultiDict
 with open('big_text.txt', 'r') as f:
     words = list(set(re.findall(r'[a-z]+', f.read().lower())))
     
-vocab = FuzzyMultiDict(max_corrections=3)
+vocab = FuzzyMultiDict(max_corrections_value=2/3)
 for word in words:
     vocab[word] = word
     
@@ -69,10 +69,7 @@ def update_value(x, y):
             
     return x
 
-phone_book = FuzzyMultiDict(
-    max_corrections=3, 
-    update_value_func=update_value
-)
+phone_book = FuzzyMultiDict(max_corrections_value=3, update_value=update_value)
 
 phone_book['Mom'] = {'phone': '123-4567', 'organization': 'family'}
 phone_book['Adam'] = {'phone': '890-1234', 'organization': 'work'}
