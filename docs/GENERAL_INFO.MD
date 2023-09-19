@@ -1,4 +1,4 @@
-# <u> [`fuzzy_multi_dict` `0.0.4`](https://github.com/SemioTricks/fuzzy-multi-dict) </u>
+# <u> [`fuzzy_multi_dict` `0.0.7`](https://github.com/SemioTricks/fuzzy-multi-dict) </u>
 ### Author: Tetiana Lytvynenko, Denis Shchutskyi
 ### Contacts author:
 + email: lytvynenkotv@gmail.com
