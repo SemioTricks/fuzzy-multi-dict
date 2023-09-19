@@ -1,11 +1,11 @@
+from collections import namedtuple
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from collections import namedtuple
 import dill as pickle
 
-
-CorrectionPrice = namedtuple(
-    'CorrectionScore', 'transposition deletion substitution insertion')
+CorrectionPrice = namedtuple(  # type: ignore
+    "CorrectionScore", "transposition deletion substitution insertion"
+)
 
 
 class FuzzyMultiDict:
@@ -21,15 +21,13 @@ class FuzzyMultiDict:
 
     def __init__(
         self,
-        max_corrections_value: float = .0,
+        max_corrections_value: float = 0.0,
         update_value: Optional[Callable] = None,
-        correction_price: CorrectionPrice = CorrectionPrice(1., 1., 1., 1.),
-
+        correction_price: CorrectionPrice = CorrectionPrice(1.0, 1.0, 1.0, 1.0),
         symbol_probability: Optional[Dict[str, float]] = None,
         default_symbol_probability: float = 1e-5,
-
         symbols_distance: Optional[Dict[Tuple[str, str], float]] = None,
-        default_symbols_distance: float = 1.
+        default_symbols_distance: float = 1.0,
     ):
         """
         Initialize Fuzzy Multi Dict object with input parameters
@@ -65,15 +63,15 @@ class FuzzyMultiDict:
         ... )
 
         """
-        self.__prefix_tree = {'parent': "ROOT", 'children': dict(), 'value': None}
-        self.__update_value = (
-            (lambda x, y: y) if update_value is None else update_value
-        )
+        self.__prefix_tree = {"parent": "ROOT", "children": dict(), "value": None}
+        self.__update_value = (lambda x, y: y) if update_value is None else update_value  # type: ignore # noqa
         self.set_correction_price(correction_price)
         self.set_symbols_probability_distances(
-            symbol_probability=symbol_probability, symbols_distance=symbols_distance,
+            symbol_probability=symbol_probability,
+            symbols_distance=symbols_distance,
             default_symbol_probability=default_symbol_probability,
-            default_symbols_distance=default_symbols_distance)
+            default_symbols_distance=default_symbols_distance,
+        )
         self.set_max_corrections_value(max_corrections_value)
 
     def set_correction_price(self, correction_price: CorrectionPrice):
@@ -99,22 +97,30 @@ class FuzzyMultiDict:
 
         """
         if not isinstance(correction_price, CorrectionPrice):
-            raise TypeError(f'expect CorrectionPrice; got {type(correction_price)}')
+            raise TypeError(f"expect CorrectionPrice; got {type(correction_price)}")
 
-        if not all([
-            0. <= price <= 1. for price in (
-                    correction_price.deletion, correction_price.substitution,
-                    correction_price.transposition, correction_price.insertion)]):
-            raise ValueError(f'expect float value between .0 and 1.')
+        if not all(
+            [
+                0.0 <= price <= 1.0
+                for price in (
+                    correction_price.deletion,
+                    correction_price.substitution,
+                    correction_price.transposition,
+                    correction_price.insertion,
+                )
+            ]
+        ):
+            raise ValueError("expect float value between .0 and 1.")
 
         self.__correction_price = correction_price
 
     def set_symbols_probability_distances(
-            self,
-            symbol_probability: Optional[Dict[str, float]],
-            default_symbol_probability: float,
-            symbols_distance: Optional[Dict[Tuple[str, str], float]],
-            default_symbols_distance: float):
+        self,
+        symbol_probability: Optional[Dict[str, float]],
+        default_symbol_probability: float,
+        symbols_distance: Optional[Dict[Tuple[str, str], float]],
+        default_symbols_distance: float,
+    ):
         """
         Sets symbols probabilities and distances
 
@@ -160,31 +166,46 @@ class FuzzyMultiDict:
         ... # .0
 
         """
-        if not 0. <= default_symbol_probability <= 1.:
-            raise ValueError(f'expect float value between .0 and 1.')
+        if not 0.0 <= default_symbol_probability <= 1.0:
+            raise ValueError("expect float value between .0 and 1.")
 
-        if not 0. <= default_symbols_distance <= 1.:
-            raise ValueError(f'expect float value between .0 and 1.')
+        if not 0.0 <= default_symbols_distance <= 1.0:
+            raise ValueError("expect float value between .0 and 1.")
 
-        if not all([(0. <= prob <= 1.) and isinstance(c, str) and len(c) == 1
-                    for c, prob in (symbol_probability or dict()).items()]):
-            raise ValueError(f'expect probability float value between .0 and 1. '
-                             f'and char key value')
+        if not all(
+            [
+                (0.0 <= prob <= 1.0) and isinstance(c, str) and len(c) == 1
+                for c, prob in (symbol_probability or dict()).items()
+            ]
+        ):
+            raise ValueError(
+                "expect probability float value between .0 and 1. " "and char key value"
+            )
 
-        if not all([(0. <= dist <= 1.) and isinstance(x, str) and len(x) == 1
-                    and isinstance(y, str) and len(y) == 1
-                    for (x, y), dist in (symbols_distance or dict()).items()]):
-            raise ValueError(f'expect probability float value between .0 and 1. '
-                             f'and char key value')
+        if not all(
+            [
+                (0.0 <= dist <= 1.0)
+                and isinstance(x, str)
+                and len(x) == 1
+                and isinstance(y, str)
+                and len(y) == 1
+                for (x, y), dist in (symbols_distance or dict()).items()
+            ]
+        ):
+            raise ValueError(
+                "expect probability float value between .0 and 1. " "and char key value"
+            )
 
         self.__default_symbol_probability = default_symbol_probability
         self.__default_symbols_distance = default_symbols_distance
 
         self.__symbol_probability = {
-            c: prob for c, prob in (symbol_probability or dict()).items()}
+            c: prob for c, prob in (symbol_probability or dict()).items()
+        }
 
         self.__symbols_distance = {
-            (x, y): dist for (x, y), dist in (symbols_distance or dict()).items()}
+            (x, y): dist for (x, y), dist in (symbols_distance or dict()).items()
+        }
         for (x, y) in (symbols_distance or dict()).keys():
             if self.__symbols_distance.get((y, x)) is None:
                 self.__symbols_distance[(y, x)] = self.__symbols_distance[(x, y)]
@@ -208,7 +229,7 @@ class FuzzyMultiDict:
 
         """
         if not 0 <= max_corrections_value <= 1:
-            raise ValueError('expect float between .0 and 1.')
+            raise ValueError("expect float between .0 and 1.")
 
         self.__max_corrections_value = max_corrections_value
 
@@ -241,16 +262,17 @@ class FuzzyMultiDict:
             pickle.dump(
                 file=f,
                 obj={
-                    'prefix_tree': self.__prefix_tree,
-                    'update_value': self.__update_value,
-                    'max_corrections_value': self.__max_corrections_value,
-                    'correction_price': self.__correction_price,
-                    'symbol_probability': self.__symbol_probability,
-                    'default_symbol_probability': self.__default_symbol_probability,
-                    'symbols_distance': self.__symbols_distance,
-                    'default_symbols_distance': self.__default_symbols_distance
+                    "prefix_tree": self.__prefix_tree,
+                    "update_value": self.__update_value,
+                    "max_corrections_value": self.__max_corrections_value,
+                    "correction_price": self.__correction_price,
+                    "symbol_probability": self.__symbol_probability,
+                    "default_symbol_probability": self.__default_symbol_probability,
+                    "symbols_distance": self.__symbols_distance,
+                    "default_symbols_distance": self.__default_symbols_distance,
                 },
-                recurse=True)
+                recurse=True,
+            )
 
     def load(self, filename: str):
         """
@@ -269,16 +291,16 @@ class FuzzyMultiDict:
         """
         with open(filename, "rb") as f:
 
-            obj = pickle.load(file=f)
+            obj = pickle.load(file=f)  # type: Dict[str, Any]
 
-            self.__prefix_tree = obj['prefix_tree']
-            self.__update_value = obj['update_value']
-            self.__max_corrections_value = obj['max_corrections_value']
-            self.__correction_price = obj['correction_price']
-            self.__symbol_probability = obj['symbol_probability']
-            self.__default_symbol_probability = obj['default_symbol_probability']
-            self.__symbols_distance = obj['symbols_distance']
-            self.__default_symbols_distance = obj['default_symbols_distance']
+            self.__prefix_tree = obj["prefix_tree"]
+            self.__update_value = obj["update_value"]  # type: ignore
+            self.__max_corrections_value = obj["max_corrections_value"]
+            self.__correction_price = obj["correction_price"]
+            self.__symbol_probability = obj["symbol_probability"]
+            self.__default_symbol_probability = obj["default_symbol_probability"]
+            self.__symbols_distance = obj["symbols_distance"]
+            self.__default_symbols_distance = obj["default_symbols_distance"]
 
     def __setitem__(self, key: str, value: Any):
         """
@@ -302,11 +324,11 @@ class FuzzyMultiDict:
         __node = self.__prefix_tree
 
         for i, c in enumerate(key):
-            if __node['children'].get(c) is None:  # type: ignore
-                __node['children'][c] = {'children': dict(), 'value': None}
-            __node = __node['children'][c]  # type: ignore
+            if __node["children"].get(c) is None:
+                __node["children"][c] = {"children": dict(), "value": None}
+            __node = __node["children"][c]
 
-        __node['value'] = self.__update_value(__node['value'], value)  # type: ignore  # noqa
+        __node["value"] = self.__update_value(__node["value"], value)  # noqa
 
     def get(self, query: str, topn: Optional[int] = None) -> List[Dict[Any, Any]]:
         """
@@ -428,17 +450,22 @@ class FuzzyMultiDict:
         __result = self.__get(query=query, topn=topn, topn_leaves=topn)
 
         top = list()
-        __processed_keys = dict()
+        __processed_keys = dict()  # type: Dict[Any, Any]
 
         for item in __result:
 
-            if item.get('value') is None or __processed_keys.get(item['key']):
+            if item.get("value") is None or __processed_keys.get(item["key"]):
                 continue
 
-            top.append({
-                'value': item['value'], 'key': item['key'],
-                "correction": item["correction"], "is_leaf": False})
-            __processed_keys[item['key']] = True
+            top.append(
+                {
+                    "value": item["value"],
+                    "key": item["key"],
+                    "correction": item["correction"],
+                    "is_leaf": False,
+                }
+            )
+            __processed_keys[item["key"]] = True
 
             if len(top) >= topn:
                 return top
@@ -450,22 +477,27 @@ class FuzzyMultiDict:
 
             for leaf_item in item["leaves"]:
 
-                if __processed_keys.get(leaf_item['key']):
+                if __processed_keys.get(leaf_item["key"]):
                     continue
 
-                top.append({
-                    'value': leaf_item['value'], 'key': leaf_item['key'],
-                    "correction": item["correction"], "is_leaf": True})
-                __processed_keys[leaf_item['key']] = True
+                top.append(
+                    {
+                        "value": leaf_item["value"],
+                        "key": leaf_item["key"],
+                        "correction": item["correction"],
+                        "is_leaf": True,
+                    }
+                )
+                __processed_keys[leaf_item["key"]] = True
 
                 if len(top) >= topn:
                     return top
 
         return top
 
-    def __get(
-            self, query: str, topn: Optional[int] = None,
-            topn_leaves: Optional[int] = None) -> List[Dict[Any, Any]]:
+    def __get(  # noqa
+        self, query: str, topn: Optional[int] = None, topn_leaves: Optional[int] = None
+    ) -> List[Dict[Any, Any]]:
         """
         Extracting the value and search result given the `query`
 
@@ -505,13 +537,16 @@ class FuzzyMultiDict:
             }
 
             if node.get("value"):
-                result[query]['value'] = node["value"]
+                result[query]["value"] = node["value"]
 
             if topn_leaves:
                 result[query]["leaves"] = self.__get_node_leaves(
-                    node=node, path=query, topn=topn_leaves)
+                    node=node, path=query, topn=topn_leaves
+                )
 
-            return self.__prepare_result(result=result, topn=topn, topn_leaves=topn_leaves)
+            return self.__prepare_result(
+                result=result, topn=topn, topn_leaves=topn_leaves
+            )
 
         rows_to_process = [
             (position, query[:position], node, list()),
@@ -526,9 +561,13 @@ class FuzzyMultiDict:
             for (position, path, node, correction) in rows_to_process:
 
                 res_row__ = self.__check_value(
-                    node=node, path=path, query=query, position=position,
-                    correction=correction, result=result,
-                    topn_leaves=topn_leaves
+                    node=node,
+                    path=path,
+                    query=query,
+                    position=position,
+                    correction=correction,
+                    result=result,
+                    topn_leaves=topn_leaves,
                 )
 
                 if res_row__:
@@ -540,32 +579,62 @@ class FuzzyMultiDict:
                     )
                 )
 
-                current_corrections_rel = (len(correction) + 1)/len(query)
+                current_corrections_rel = (len(correction) + 1) / len(query)
 
                 if current_corrections_rel <= self.__max_corrections_value:
                     if (topn_leaves and position < len(query)) or topn_leaves is None:
                         rows_to_process__.extend(
                             self.__apply_insertion(
-                                node=node, path=path, query=query, position=position,
-                                processed=processed, correction=correction))
+                                node=node,
+                                path=path,
+                                query=query,
+                                position=position,
+                                processed=processed,
+                                correction=correction,
+                            )
+                        )
 
-                if position < len(query) and current_corrections_rel <= self.__max_corrections_value:
+                if (
+                    position < len(query)
+                    and current_corrections_rel <= self.__max_corrections_value
+                ):
                     rows_to_process__.extend(
                         self.__apply_substitution(
-                            node=node, path=path, query=query, position=position,
-                            processed=processed, correction=correction
-                        ))
+                            node=node,
+                            path=path,
+                            query=query,
+                            position=position,
+                            processed=processed,
+                            correction=correction,
+                        )
+                    )
 
-                    rows_to_process__.extend(self.__apply_deletion(
-                            node=node, path=path, query=query, position=position,
-                            processed=processed, correction=correction
-                        ))
+                    rows_to_process__.extend(
+                        self.__apply_deletion(
+                            node=node,
+                            path=path,
+                            query=query,
+                            position=position,
+                            processed=processed,
+                            correction=correction,
+                        )
+                    )
 
-                if position + 1 < len(query) and query[position] != query[position + 1] and current_corrections_rel <= self.__max_corrections_value:
-                    rows_to_process__.extend(self.__apply_transposition(
-                            node=node, path=path, query=query, position=position,
-                            processed=processed, correction=correction
-                        ))
+                if (
+                    position + 1 < len(query)
+                    and query[position] != query[position + 1]
+                    and current_corrections_rel <= self.__max_corrections_value
+                ):
+                    rows_to_process__.extend(
+                        self.__apply_transposition(
+                            node=node,
+                            path=path,
+                            query=query,
+                            position=position,
+                            processed=processed,
+                            correction=correction,
+                        )
+                    )
 
             if not len(rows_to_process__):
                 break
@@ -634,8 +703,14 @@ class FuzzyMultiDict:
         return node, position + sub_position
 
     def __apply_as_is(
-        self, node: dict, path: str, key: str, position: int, processed: dict,
-        correction: list) -> list:
+        self,
+        node: dict,
+        path: str,
+        key: str,
+        position: int,
+        processed: dict,
+        correction: list,
+    ) -> list:
 
         __node_children = node["children"].keys()
         __has_children = len(__node_children) > 0
@@ -663,8 +738,14 @@ class FuzzyMultiDict:
         return rows_to_process__
 
     def __apply_transposition(
-        self, node: dict, path: str, query: str, position: int, processed: dict,
-        correction: list) -> list:
+        self,
+        node: dict,
+        path: str,
+        query: str,
+        position: int,
+        processed: dict,
+        correction: list,
+    ) -> list:
 
         rows_to_process__: List[tuple] = list()
 
@@ -679,15 +760,16 @@ class FuzzyMultiDict:
             __node = node["children"][query[position + 1]]["children"][query[position]]
             __path = path + query[position + 1] + query[position]
             __processed = processed.get((position + 2, __path))
-            __score = (self.__correction_price.transposition *
-                       self.get_symbols_distance(
-                           query[position], query[position + 1])) ** .5
+            __score = (
+                self.__correction_price.transposition
+                * self.get_symbols_distance(query[position], query[position + 1])
+            ) ** 0.5
 
             __correction = correction + [
                 {
                     "correction": f"transposition of symbols "
                     f'"{query[position: position + 2]}"',
-                    'score': __score,
+                    "score": __score,
                     "position": position,
                 },
             ]
@@ -714,8 +796,14 @@ class FuzzyMultiDict:
         return rows_to_process__
 
     def __apply_insertion(
-            self, node: dict, path: str, query: str, position: int, processed: dict,
-            correction: list) -> list:
+        self,
+        node: dict,
+        path: str,
+        query: str,
+        position: int,
+        processed: dict,
+        correction: list,
+    ) -> list:
 
         rows_to_process__: List[Tuple[int, str, dict, list]] = list()
 
@@ -724,8 +812,11 @@ class FuzzyMultiDict:
 
         if __has_children:
             __node_children = sorted(
-                __node_children, key=lambda x: -self.__symbol_probability.get(
-                    x, self.__default_symbol_probability))
+                __node_children,
+                key=lambda x: -self.__symbol_probability.get(
+                    x, self.__default_symbol_probability
+                ),
+            )
 
         if not __has_children:
             return rows_to_process__
@@ -734,12 +825,18 @@ class FuzzyMultiDict:
             __node = node["children"][__c]
             __path = path + __c
             __score = (
-                    self.__correction_price.insertion *
-                    (1 - self.__symbol_probability.get(__c, self.__default_symbol_probability)))**.5
+                self.__correction_price.insertion
+                * (
+                    1
+                    - self.__symbol_probability.get(
+                        __c, self.__default_symbol_probability
+                    )
+                )
+            ) ** 0.5
             __correction = correction + [
                 {
                     "correction": f'insertion of "{__c}"',
-                    'score': __score,
+                    "score": __score,
                     "position": position,
                 },
             ]
@@ -760,17 +857,29 @@ class FuzzyMultiDict:
         return rows_to_process__
 
     def __apply_deletion(
-        self, node: dict, path: str, query: str, position: int, processed: dict,
-        correction: list) -> list:
+        self,
+        node: dict,
+        path: str,
+        query: str,
+        position: int,
+        processed: dict,
+        correction: list,
+    ) -> list:
 
         rows_to_process__ = list()
-        __score = (self.__correction_price.deletion
-                   * (1 - self.__symbol_probability.get(
-                    query[position], self.__default_symbol_probability))) ** .5
+        __score = (
+            self.__correction_price.deletion
+            * (
+                1
+                - self.__symbol_probability.get(
+                    query[position], self.__default_symbol_probability
+                )
+            )
+        ) ** 0.5
         __correction = correction + [
             {
                 "correction": f'deletion of "{query[position]}"',
-                'score': __score,
+                "score": __score,
                 "position": position,
             },
         ]
@@ -792,8 +901,14 @@ class FuzzyMultiDict:
         return rows_to_process__
 
     def __apply_substitution(
-        self, node: dict, path: str, query: str, position: int, processed: dict,
-        correction: list) -> list:
+        self,
+        node: dict,
+        path: str,
+        query: str,
+        position: int,
+        processed: dict,
+        correction: list,
+    ) -> list:
 
         rows_to_process__ = list()
 
@@ -802,18 +917,21 @@ class FuzzyMultiDict:
         if len(__node_children) > 0:
             __node_children = sorted(
                 sorted(__node_children),
-                key=lambda x: self.get_symbols_distance(x, query[position]))
+                key=lambda x: self.get_symbols_distance(x, query[position]),
+            )
 
         for __c in __node_children:
             if __c == query[position]:
                 continue
 
-            __score = (self.__correction_price.substitution *
-                       self.get_symbols_distance(query[position], __c)) ** .5
+            __score = (
+                self.__correction_price.substitution
+                * self.get_symbols_distance(query[position], __c)
+            ) ** 0.5
             __correction = correction + [
                 {
                     "correction": f'substitution "{query[position]}" for "{__c}"',
-                    'score': __score,
+                    "score": __score,
                     "position": position,
                 },
             ]
@@ -838,8 +956,8 @@ class FuzzyMultiDict:
         return rows_to_process__
 
     def __prepare_result(
-            self, result: dict, topn: Optional[int],
-            topn_leaves: Optional[int]) -> list:
+        self, result: dict, topn: Optional[int], topn_leaves: Optional[int]
+    ) -> list:
 
         if not topn_leaves:
             result = {k: v for k, v in result.items() if v["value"] is not None}
@@ -849,7 +967,8 @@ class FuzzyMultiDict:
 
         prepeared_result = sorted(
             result.values(),
-            key=lambda x: self.__get_total_corrections_score(x["correction"])) # type: ignore
+            key=lambda x: self.__get_total_corrections_score(x["correction"]),
+        )
 
         if topn:
             prepeared_result = prepeared_result[:topn]
@@ -857,8 +976,15 @@ class FuzzyMultiDict:
         return prepeared_result
 
     def __check_value(
-        self, node: dict, path: str, query: str, position: int, correction: list,
-        result: dict, topn_leaves: Optional[int]) -> Optional[dict]:
+        self,
+        node: dict,
+        path: str,
+        query: str,
+        position: int,
+        correction: list,
+        result: dict,
+        topn_leaves: Optional[int],
+    ) -> Optional[dict]:
 
         if position != len(query):
             return None
@@ -872,9 +998,8 @@ class FuzzyMultiDict:
 
         if node.get("value") is not None:
             __result_row = result.get(path)
-            if (
-                __result_row is None
-                or len(__result_row["correction"]) > len(correction)
+            if __result_row is None or len(__result_row["correction"]) > len(
+                correction
             ):
                 result_value["value"] = node["value"]
                 result_value["correction"] = correction
@@ -885,8 +1010,8 @@ class FuzzyMultiDict:
         return result_value
 
     def __get_node_leaves(
-            self, node: dict, path: str = "",
-            topn: Optional[int] = 10) -> List[Dict[str, Any]]:
+        self, node: dict, path: str = "", topn: Optional[int] = 10
+    ) -> List[Dict[str, Any]]:
         """
         Returns top node leaves
 
@@ -904,7 +1029,7 @@ class FuzzyMultiDict:
                 ]
 
         """
-        leaves = list()
+        leaves = list()  # type: List[Any]
 
         if topn <= 0:
             return leaves
@@ -918,7 +1043,7 @@ class FuzzyMultiDict:
 
                 if __value is not None:
 
-                    leaves.append({'key': path + __path, 'value': __node["value"]})
+                    leaves.append({"key": path + __path, "value": __node["value"]})
 
                     topn -= 1
                     if topn <= 0:
@@ -926,10 +1051,10 @@ class FuzzyMultiDict:
 
                     break
 
-                if len(__node['children']) != 1:
+                if len(__node["children"]) != 1:
                     break
 
-                __x, __node = list(__node['children'].items())[0]
+                __x, __node = list(__node["children"].items())[0]
                 __path += __x
 
             leaves.extend(self.__get_node_leaves(__node, path + __path, topn))
@@ -947,7 +1072,7 @@ class FuzzyMultiDict:
         :return float: sum of corrections prices
 
         """
-        return sum([_['score'] for _ in corrections])
+        return sum([_["score"] for _ in corrections])
 
     @property
     def correction_price(self) -> CorrectionPrice:
@@ -1046,7 +1171,7 @@ class FuzzyMultiDict:
 
         """
         if x == y:
-            return 0.
+            return 0.0
 
         return self.__symbols_distance.get((x, y), self.__default_symbols_distance)
 

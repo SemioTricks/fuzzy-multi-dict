@@ -3,7 +3,7 @@
 [![Coverage Status](https://img.shields.io/badge/%20Python%20Versions-%3E%3D3.9-informational)](https://pypi.org/project/fuzzy_multi_dict/)
 [![Coverage Status](https://coveralls.io/repos/github/SemioTricks/fuzzy-multi-dict/badge.svg?branch=feature/initial)](https://coveralls.io/github/SemioTricks/fuzzy-multi-dict?branch=feature/initial)
 
-[![Coverage Status](https://img.shields.io/badge/Version-0.0.5-informational)](https://pypi.org/project/fuzzy_multi_dict/)
+[![Coverage Status](https://img.shields.io/badge/Version-0.0.7-informational)](https://pypi.org/project/fuzzy_multi_dict/)
 [![Coverage Status](https://img.shields.io/badge/Docs-passed-green)](https://github.com/SemioTricks/fuzzy-multi-dict/tree/main/docs)
 
 **fuzzy-multi-dict** is a module that provides a hight-flexible structure for storing 
