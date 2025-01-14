@@ -1,11 +1,180 @@
 import pytest
+from unittest.mock import Mock
+from fuzzy_multi_dict import FuzzyMultiDict
+from fuzzy_multi_dict.search_engine.search_engine import SearchEngine
+from fuzzy_multi_dict.search_engine.correction import (
+    SymbolInsertion,
+    SymbolsTransposition,
+    SymbolsDeletion,
+    SymbolSubstitution
+)
 
-from fuzzy_multi_dict import FuzzyMultiDict, CorrectionPrice
+
+@pytest.fixture
+def search_engine():
+    corrections = [
+        SymbolInsertion(price=1.),
+        SymbolsTransposition(price=1.),
+        SymbolsDeletion(price=1.),
+        SymbolSubstitution(price=1.)
+    ]
+    return SearchEngine(corrections)
 
 
-def test_get():
+def test_init():
+    search_engine = Mock()
+    d = FuzzyMultiDict(search_engine)
+    d['abc'] = 2
 
-    d = FuzzyMultiDict(max_corrections_value=1.)
+    assert d.trie.root.idx == 0
+    assert d.trie.root['a'].idx == 1
+    assert d.trie.root['a']['b'].idx == 2
+    assert d.trie.root['a']['b']['c'].idx == 3
+
+
+def test_setitem():
+
+    search_engine = Mock()
+
+    d = FuzzyMultiDict(search_engine)
+    d['x'] = 1
+
+    d = FuzzyMultiDict(search_engine)
+    d['a'] = 1
+    d['ab'] = 2
+    d['abc'] = 3
+
+    d = FuzzyMultiDict(search_engine)
+    d['abc'] = 1
+    d['ab'] = 2
+    d['a'] = 3
+
+
+def test_setitem_with_symbol_weights():
+
+    search_engine = Mock()
+    d = FuzzyMultiDict(search_engine)
+    d['a'] = 1
+    d['b'] = 1
+    assert list(d.trie.root.children.keys()) == ['a', 'b']
+
+    d = FuzzyMultiDict(symbol_weights={'a': 0, 'b': 1}, search_engine=search_engine)
+    d['a'] = 1
+    d['b'] = 1
+    assert list(d.trie.root.children.keys()) == ['b', 'a']
+
+
+def test_getitem():
+
+    search_engine = Mock()
+    d = FuzzyMultiDict(search_engine)
+    d['x'] = 1
+
+    assert d['x'] == 1
+    #
+    # with pytest.raises(KeyError):
+    #     assert d['y']
+
+
+def test_get(search_engine):
+    d = FuzzyMultiDict(search_engine)
+    d['a'] = 1
+
+    assert d.get('a') == [1, ]
+
+    d = FuzzyMultiDict(search_engine)
+    d['ab'] = 1
+    d['acc'] = 2
+    d['addd'] = 3
+
+    assert d.get('a') == [1, 2, 3]
+
+    d = FuzzyMultiDict(search_engine)
+    d['ab'] = 3
+    d['acc'] = 2
+    d['addd'] = 1
+
+    assert d.get('a') == [3, 2, 1]
+
+    d = FuzzyMultiDict(search_engine)
+    d['abc'] = 2
+    d['abcd'] = 3
+
+    assert d.get('ab') == [2, 3]
+
+
+def test_get_with_insertion(search_engine):
+    corrections = [
+        SymbolInsertion(price=1.),
+    ]
+    search_engine = SearchEngine(corrections)
+    d = FuzzyMultiDict(search_engine)
+
+    d['abcd'] = 1
+    assert d.get('bcd') == [1, ]
+    assert d.get('acd') == [1, ]
+    assert d.get('abd') == [1, ]
+    assert d.get('abc') == [1, ]
+    assert d.get('ac') == [1, ]
+    assert d.get('ab') == [1, ]
+    assert d.get('bc') == [1, ]
+
+    d['ac'] = 2
+    assert d.get('ac') == [2, ]
+
+    d['bc'] = 3
+    assert d.get('bc') == [3, ]
+
+
+def test_get_with_transposition():
+    corrections = [
+        SymbolsTransposition(price=1.),
+    ]
+    search_engine = SearchEngine(corrections)
+    d = FuzzyMultiDict(search_engine)
+
+    d['abcd'] = 1
+    assert d.get('bacd') == [1, ]
+    assert d.get('acbd') == [1, ]
+    assert d.get('abdc') == [1, ]
+
+
+def test_get_with_deletion():
+
+    corrections = [
+        SymbolsDeletion(price=1.),
+    ]
+    search_engine = SearchEngine(corrections)
+
+    d = FuzzyMultiDict(search_engine)
+    d['abcd'] = 1
+
+    assert d.get('aabcd') == [1, ]
+    assert d.get('abcdd') == [1, ]
+    assert d.get('aabcdd') == [1, ]
+
+    assert d['xyz'] is None
+
+
+def test_get_with_substitution():
+    corrections = [
+        SymbolSubstitution(price=1.)
+    ]
+    search_engine = SearchEngine(corrections)
+    d = FuzzyMultiDict(search_engine)
+    d['abcd'] = 1
+
+    assert d.get('xbcd') == [1, ]
+    assert d.get('axcd') == [1, ]
+    assert d.get('abxd') == [1, ]
+    assert d.get('abcx') == [1, ]
+
+    assert d['xyz'] is None
+
+
+def test_get_with_corrections(search_engine):
+
+    d = FuzzyMultiDict(search_engine)
 
     d["first"] = 1
     d["second"] = 2
@@ -13,117 +182,63 @@ def test_get():
 
     assert d["first"] == 1
     assert d["frst"] == 1  # missing symbol
+    assert d["irst"] == 1  # missing symbol
+    assert d["firs"] == 1  # missing symbol
+
+    assert d["ifrst"] == 1  # symbols transposition
+    assert d["firts"] == 1  # symbols transposition
+
+    assert d["fits"] == 1  # symbols transposition + missing symbol
+
     assert d["forst"] == 1  # wrong symbol
     assert d["fiirst"] == 1  # extra symbol
-    assert d["frsd"] == 1  # more than 1 mistake
-    assert d["tirsf"] == 1  # more than 2 mistake
-    assert d["rsd"] == 1  # more than 2 mistake
 
-    r = d.get("frst")
-    assert len(r) == 1
-    assert r[0]["value"] == 1
-    assert len(r[0]["correction"]) == 1
+    assert d['xyz'] is None
 
 
-def test_max_corrections():
-
-    d = FuzzyMultiDict(max_corrections_value=1/3)
+def test_get_with_mylt_corrections(search_engine):
+    d = FuzzyMultiDict(search_engine)
 
     d["first"] = 1
     d["second"] = 2
     d["third"] = 3
 
-    assert len(d.get("firstt")) > 0
-    assert len(d.get("firstttt")) == 0
+    assert d["fiirs"] == 1  # extra symbol + missing symbol
 
-    d.set_max_corrections_value(.5)
-    assert len(d.get("firstttt")) > 0
-
-    d = FuzzyMultiDict()
-
-    d["first"] = 1
-    d["second"] = 2
-    d["third"] = 3
-
-    assert len(d.get("firstt")) == 0
-
-    d.set_max_corrections_value(1/3)
-    assert len(d.get("firstt")) > 0
-
-    d.set_max_corrections_value(1/2)
-    assert len(d.get("firstt")) > 0
+    assert d["frsd"] == 1  # 2 mistakes
+    assert d["tirsf"] == 1  # 2 mistakes
+    assert d["frsd"] == 1  # 2 mistakes
 
 
-def test_transposition():
-
-    d = FuzzyMultiDict(max_corrections_value=2/3)
+def test_get_with_mult_corrections_and_values(search_engine):
+    d = FuzzyMultiDict(search_engine)
 
     d["first"] = 1
     d["second"] = 2
     d["third"] = 3
 
-    r = d.get("ifrst")
-    assert len(r) == 1
-    assert r[0]["value"] == 1
-    assert len(r[0]["correction"]) == 1
+    assert d.get('tfirsd', max_correction_rate=.6) == [1, 3]
+    assert d.get('tirsd') == [1, 3]
 
 
-def test_insertion():
+def test_max_corrections(search_engine):
 
-    d = FuzzyMultiDict(max_corrections_value=2/3)
+    d = FuzzyMultiDict(search_engine)
 
     d["first"] = 1
     d["second"] = 2
     d["third"] = 3
 
-    r = d.get("frst")
-    assert len(r) == 1
-    assert r[0]["value"] == 1
-    assert len(r[0]["correction"]) == 1
+    assert len(d.get("ffirst", max_correction_rate=.1)) == 0
+    assert len(d.get("firstt", max_correction_rate=.1)) == 0
+    assert len(d.get("firstt", max_correction_rate=1/3)) > 0
+
+    assert len(d.get("firstttt", max_correction_rate=1/3)) == 0
+    assert len(d.get("firstttt", max_correction_rate=.5)) > 0
 
 
-def test_substitution():
-    d = FuzzyMultiDict(max_corrections_value=2/3)
-
-    d["first"] = 1
-    d["second"] = 2
-    d["third"] = 3
-
-    r = d.get("ferst")
-    assert len(r) == 1
-    assert r[0]["value"] == 1
-    assert len(r[0]["correction"]) == 1
-
-
-def test_deletion():
-
-    d = FuzzyMultiDict(max_corrections_value=2/3)
-
-    d["first"] = 1
-    d["second"] = 2
-    d["third"] = 3
-
-    r = d.get("firstt")
-    assert len(r) == 1
-    assert r[0]["value"] == 1
-    assert len(r[0]["correction"]) == 1
-
-
-def test_get_key_with_alts():
-    d = FuzzyMultiDict(max_corrections_value=2/3)
-
-    d["first"] = 1
-    d["second"] = 2
-    d["third"] = 3
-
-    r = d.get("fird")
-    assert len(r) == 2
-    values = [_["value"] for _ in r]
-    assert 1 in values and 3 in values
-
-
-def test_get_no_key():
-    d = FuzzyMultiDict(max_corrections_value=2/3)
+def test_get_no_key(search_engine):
+    d = FuzzyMultiDict(search_engine)
 
     d["first"] = 1
     d["second"] = 2
@@ -131,279 +246,78 @@ def test_get_no_key():
     r = d.get("third")
     assert len(r) == 0
 
-    with pytest.raises(KeyError):
-        _ = d["third"]
+    assert d["third"] is None
 
 
-def test_set_dict():
-    d = FuzzyMultiDict(max_corrections_value=2/3)
+def test_get_key_with_sim(search_engine):
 
-    d["first"] = {"x": 1, "y": 2, "z": 3}
-    d["second"] = [1, 2, 3]
-    d["third"] = 3
-
-    assert d.get("first") is not None
-    assert d["first"].get("x") is not None
-    assert d["first"]["x"] == 1
-
-
-def test_custom_upd_value():
-    def update_value(x, y):
-
-        if x is None:
-            return y
-
-        if not isinstance(x, dict) or not isinstance(y, dict):
-            raise TypeError(
-                f"Invalid value type; expect dict; got {type(x)} and {type(y)}"
-            )
-
-        for k, v in y.items():
-
-            if x.get(k) is None:
-                x[k] = v
-                continue
-
-            if isinstance(x[k], list):
-                if v not in x[k]:
-                    x[k].append(v)
-                continue
-
-            if x[k] != v:
-                x[k] = [x[k], v]
-
-        return x
-
-    d = FuzzyMultiDict(max_corrections_value=2/3, update_value=update_value)
-
-    d["first"] = {"x": 1, "y": 2}
-    d["first"] = {"x": 1, "y": 2, "z": 3}
-    assert d["first"]["x"] == 1
-    assert d["first"]["y"] == 2
-
-    d["first"] = {"x": 1, "y": 2, "z": 4}
-    assert d["first"]["z"] == [3, 4]
-
-    d["first"] = {"z": 5}
-    assert d["first"]["z"] == [3, 4, 5]
-
-    d["first"] = {"z": 5}
-    assert d["first"]["z"] == [3, 4, 5]
-
-
-def test_get_key_with_sim():
-    d = FuzzyMultiDict(max_corrections_value=2/3)
+    d = FuzzyMultiDict(search_engine)
 
     d["on"] = 1
     d["one"] = 2
     d["ones"] = 3
 
-    r = d.get("on")
-    assert len(r) == 1
-    assert r[0]["value"] == 1
-
-    r = d.get("one")
-    assert len(r) == 1
-    assert r[0]["value"] == 2
-
-    r = d.get("ones")
-    assert len(r) == 1
-    assert r[0]["value"] == 3
+    assert d.get("on")[0] == 1
+    assert d.get("one")[0] == 2
+    assert d.get("ones")[0] == 3
 
 
-def test_search():
-    d = FuzzyMultiDict(max_corrections_value=2/3)
+def test_unintuitive(search_engine):
+    symbol_weights = {'a': 1., 'c': .5, 'ц': .1}
+    symbols_distances = {
+        ('а', 'с'): .01, ('с', 'а'): .01, ('ц', 'л'): 1, ('л', 'ц'): 1}
 
-    d["apple"] = "apple"
-    d["apple red delicious"] = "apple red delicious"
-    d["apple fuji"] = "apple fuji"
-    d["apple granny smith"] = "apple granny smith"
-    d["apple honeycrisp"] = "apple honeycrisp"
-    d["apple golden delicious"] = "apple golden delicious"
-    d["apple pink lady"] = "apple pink lady"
+    corrections = [
+        SymbolInsertion(price=1., symbol_weights=symbol_weights, symbols_distances=symbols_distances),
+        SymbolsTransposition(price=1., symbol_weights=symbol_weights, symbols_distances=symbols_distances),
+        SymbolsDeletion(price=1., symbol_weights=symbol_weights, symbols_distances=symbols_distances),
+        SymbolSubstitution(price=1., symbol_weights=symbol_weights, symbols_distances=symbols_distances)
+    ]
+    search_engine = SearchEngine(corrections)
 
-    assert len(d.get("apple")) == 1
-    assert len(d.search("apple")) > 1
-    assert len(d.search("apl")) > 1
+    d = FuzzyMultiDict(search_engine=search_engine, symbol_weights=symbol_weights)
 
+    d["специи"] = 1
+    d["апельсин"] = 2
+    d["спицы"] = 3
+    d["пила"] = 4
+    d["опилки"] = 5
+    d["слип"] = 6
+    d["спальник"] = 7
 
-def test_search_02():
-    d = FuzzyMultiDict(max_corrections_value=2/3)
-
-    d["apple"] = {'s': "apple", 'id': 1}
-    d["apple red delicious"] = {'s': "apple red delicious", 'id': 2}
-    d["apple fuji"] = {'s': "apple fuji", 'id': 3}
-    d["apple granny smith"] = {'s': "apple granny smith", 'id': 4}
-    d["apple honeycrisp"] = {'s': "apple honeycrisp", 'id': 5}
-    d["apple golden delicious"] = {'s': "apple golden delicious", 'id': 6}
-    d["apple pink lady"] = {'s': "apple pink lady", 'id': 7}
-
-    assert len(d.get("apple")) == 1
-    assert len(d.search("apple")) > 1
-    assert len(d.search("apl")) > 1
-
-
-def test_init():
-
-    d = FuzzyMultiDict(
-        max_corrections_value=2/3,
-        correction_price=CorrectionPrice(1., 1., 1., 1.),
-        symbol_probability={'a': 1., 'c': .5},
-        default_symbol_probability=.1,
-        symbols_distance={('а', 'с'): .01, ('ц', 'л'): 1},
-        default_symbols_distance=1.
-    )
-
-    d["специи"] = "специи"
-    d["апельсин"] = "апельсин"
-    d["спицы"] = "спицы"
-    d["пила"] = "пила"
-    d["опилки"] = "опилки"
-    d["слип"] = "слип"
-    d["спальник"] = "спальник"
-
-    r = d.search('спел')
+    r = d.get('спел', max_correction_rate=2/3)
     assert len(r) > 0
 
-    assert r[0]['value'] == 'апельсин'
+    assert r[0] == 2
 
 
-def test_init_error_max_corr_value():
+def test_search(search_engine):
+    d = FuzzyMultiDict(search_engine)
 
-    with pytest.raises(ValueError):
-        FuzzyMultiDict(
-            max_corrections_value=5.,
-            correction_price=CorrectionPrice(1., 1., 1., 1.),
-            symbol_probability={'a': 1., 'c': .5},
-            default_symbol_probability=.1,
-            symbols_distance={('а', 'с'): .01, ('ц', 'л'): 1},
-            default_symbols_distance=1.
-        )
+    d["apple golden delicious"] = 1
+    d["apple red delicious"] = 2
+    d["apple granny smith"] = 3
+    d["apple honeycrisp"] = 4
+    d["apple pink lady"] = 5
+    d["apple fuji"] = 6
+    d["apple"] = 7
 
-
-def test_init_corr_price_type():
-    with pytest.raises(TypeError):
-        FuzzyMultiDict(
-            max_corrections_value=2/3,
-            correction_price=1.,
-            symbol_probability={'a': 1., 'c': .5},
-            default_symbol_probability=.1,
-            symbols_distance={('а', 'с'): .01, ('ц', 'л'): 1},
-            default_symbols_distance=1.
-        )
+    assert d.get("apple") == [7, 6, 5, 4, 3, 2, 1]
+    assert d.get("apl") == [7, 6, 5, 4, 3, 2, 1]
+    assert d.get("apple g") == [3, 1]
+    assert d.get("apple f") == [6, ]
 
 
-def test_init_corr_price():
-    with pytest.raises(ValueError):
-        FuzzyMultiDict(
-            max_corrections_value=2/3,
-            correction_price=CorrectionPrice(1., 1., 1., 10.),
-            symbol_probability={'a': 1., 'c': .5},
-            default_symbol_probability=.1,
-            symbols_distance={('а', 'с'): .01, ('ц', 'л'): 1},
-            default_symbols_distance=1.
-        )
+def test_save_load(search_engine, tmp_path):
+    d = FuzzyMultiDict(search_engine)
 
+    d["first"] = 1
+    d["second"] = 2
+    d["third"] = 3
 
-def test_symb_prob_key():
-    with pytest.raises(ValueError):
-        FuzzyMultiDict(
-            max_corrections_value=2/3,
-            correction_price=CorrectionPrice(1., 1., 1., 1.),
-            symbol_probability={'a': 1., 'c': .5, 'ас': .1},
-            default_symbol_probability=.1,
-            symbols_distance={('а', 'с'): .01, ('ц', 'л'): 1},
-            default_symbols_distance=1.
-        )
+    d.save_trie(tmp_path / 'trie.bin')
 
+    d_loaded = FuzzyMultiDict(search_engine)
+    d_loaded.load_trie(tmp_path / 'trie.bin')
+    assert d_loaded["first"] == 1
 
-def test_symb_prob():
-    with pytest.raises(ValueError):
-        FuzzyMultiDict(
-            max_corrections_value=2/3,
-            correction_price=CorrectionPrice(1., 1., 1., 1.),
-            symbol_probability={'a': 1., 'c': .5, 'd': 10.},
-            default_symbol_probability=.1,
-            symbols_distance={('а', 'с'): .01, ('ц', 'л'): 1},
-            default_symbols_distance=1.
-        )
-
-    with pytest.raises(ValueError):
-        FuzzyMultiDict(
-            max_corrections_value=2/3,
-            correction_price=CorrectionPrice(1., 1., 1., 1.),
-            symbol_probability={'a': 1., 'c': .5, 'd': 1.},
-            default_symbol_probability=5.1,
-            symbols_distance={('а', 'с'): .01, ('ц', 'л'): 1},
-            default_symbols_distance=1.
-        )
-
-
-def test_symb_dist():
-
-    with pytest.raises(ValueError):
-        FuzzyMultiDict(
-            max_corrections_value=2/3,
-            correction_price=CorrectionPrice(1., 1., 1., 1.),
-            symbol_probability={'a': 1., 'c': .5, 'd': 1.},
-            default_symbol_probability=.1,
-            symbols_distance={('а', 'с'): .01, ('ц', 'л'): 10.},
-            default_symbols_distance=1.
-        )
-    with pytest.raises(ValueError):
-        FuzzyMultiDict(
-            max_corrections_value=2/3,
-            correction_price=CorrectionPrice(1., 1., 1., 1.),
-            symbol_probability={'a': 1., 'c': .5, 'd': 1.},
-            default_symbol_probability=.1,
-            symbols_distance={('а', 'с'): .01, ('ц', 'ло'): 1.},
-            default_symbols_distance=1.
-        )
-
-
-def test_set_max_corr_value():
-    d = FuzzyMultiDict(
-        max_corrections_value=2/3,
-        correction_price=CorrectionPrice(1., 1., 1., 1.),
-        symbol_probability={'a': 1., 'c': .5, 'd': 1.},
-        default_symbol_probability=.1,
-        symbols_distance={('а', 'с'): .01, ('ц', 'л'): 1},
-        default_symbols_distance=1.
-    )
-    d.set_max_corrections_value(1/3)
-    assert d.max_corrections_value == 1/3
-
-
-def test_set_corr_price():
-    d = FuzzyMultiDict(
-        max_corrections_value=2/3,
-        correction_price=CorrectionPrice(1., 1., 1., 1.),
-        symbol_probability={'a': 1., 'c': .5, 'd': 1.},
-        default_symbol_probability=.1,
-        symbols_distance={('а', 'с'): .01, ('ц', 'л'): 1},
-        default_symbols_distance=1.
-    )
-    print(d.correction_price)
-    d.set_correction_price(CorrectionPrice(deletion=1., substitution=.2, transposition=.3, insertion=.4),)
-    assert d.correction_price.insertion == .4
-
-
-def test_set_symb_prob_dist():
-    d = FuzzyMultiDict()
-
-    d.set_symbols_probability_distances(
-        symbol_probability={'a': 1., 'b': .5, 'c': 1.},
-        default_symbol_probability=.1,
-        symbols_distance={('a', 'b'): .5, ('b', 'c'): .1},
-        default_symbols_distance=1.)
-
-    assert d.default_symbol_probability == .1
-    assert d.default_symbols_distance == 1.
-
-    assert d.get_symbol_probability('b') == .5
-    assert d.get_symbol_probability('e') == .1
-
-    assert d.get_symbols_distance('a', 'b') == .5
-    assert d.get_symbols_distance('b', 'a') == .5
-    assert d.get_symbols_distance('d', 'e') == 1.
-    assert d.get_symbols_distance('c', 'c') == .0
