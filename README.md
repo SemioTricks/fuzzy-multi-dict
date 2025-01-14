@@ -25,88 +25,58 @@ Module can be used as a fast enough (due to the tree structure of data storage)
 spell-checker.
 
 ```python
-import re
 from fuzzy_multi_dict import FuzzyMultiDict
+from fuzzy_multi_dict.search_engine import (
+    SearchEngine,
+    SymbolInsertion,
+    SymbolsTransposition,
+    SymbolsDeletion,
+    SymbolSubstitution
+)
 
-with open('big_text.txt', 'r') as f:
-    words = list(set(re.findall(r'[a-z]+', f.read().lower())))
-    
-vocab = FuzzyMultiDict(max_corrections_value=2/3)
-for word in words:
-    vocab[word] = word
-    
-vocab['responsibilities']
-# 'responsibilities'
+symbol_weights = {'a': 1, 'p': .5, 'l': .6, 'e': .7}
+symbols_distances = {('a', 's'): .1, ('a', 'l'): .7}
 
-vocab['espansibillities']
-# 'responsibilities'
+corrections = [
+    SymbolInsertion(price=1., symbol_weights=symbol_weights),
+    SymbolsTransposition(price=1., symbols_distances=symbols_distances),
+    SymbolsDeletion(price=1., symbol_weights=symbol_weights),
+    SymbolSubstitution(price=1., symbols_distances=symbols_distances)
+]
+search_engine = SearchEngine(corrections)
 
-vocab.get('espansibillities')
-# [{'value': 'responsibilities',
-#   'key': 'responsibilities',
-#   'mistakes': [{'mistake_type': 'missing symbol "r"', 'position': 0},
-#    {'mistake_type': 'wrong symbol "a": replaced on "o"', 'position': 3},
-#    {'mistake_type': 'extra symbol "l"', 'position': 10}]}]
-```
 
-It can also be used as a flexible structure to store and access semi-structured data.
+d = FuzzyMultiDict(
+    search_engine=search_engine,
+    symbol_weights=symbol_weights,
+)
 
-```python
-from fuzzy_multi_dict import FuzzyMultiDict
+d["apple golden delicious"] = 1
+d["apple red delicious"] = 2
+d["apple granny smith"] = 3
+d["apple honeycrisp"] = 4
+d["apple pink lady"] = 5
+d["apple fuji"] = 6
 
-def update_value(x, y):
-    
-    if x is None: return y
-    
-    if not isinstance(x, dict) or not isinstance(y, dict):
-        raise TypeError(f'Invalid value type; expect dict; got {type(x)} and {type(y)}')
-        
-    for k, v in y.items():
-        if x.get(k) is None: x[k] = v
-        elif isinstance(x[k], list):
-            if v not in x[k]: x[k].append(v)
-        elif x[k] != v: x[k] = [x[k], v]
-            
-    return x
+print(d.get("apple"))
+# [6, 5, 4, 3, 2, 1]
 
-phone_book = FuzzyMultiDict(max_corrections_value=3, update_value=update_value)
+print(d.get("apel"))
+# [6, 5, 4, 3, 2, 1]
 
-phone_book['Mom'] = {'phone': '123-4567', 'organization': 'family'}
-phone_book['Adam'] = {'phone': '890-1234', 'organization': 'work'}
-phone_book['Lisa'] = {'phone': '567-8901', 'organization': 'family'}
-phone_book['Adam'] = {'address': 'baker street 221b'}
-phone_book['Adam'] = {'phone': '234-5678', 'organization': 'work'}
+print(d.get("apple g"))
+# [3, 1]
 
-phone_book['Adam']
-# {'phone': ['890-1234', '234-5678'],
-#  'organization': 'work',
-#  'address': 'baker street 221b'}
-```
+print(d.get("apple f"))
+# [6]
 
-It can also be used for indexing data and fuzzy-search.
+print(d.get("apple gol"))
+# [1]
 
-```python
-from fuzzy_multi_dict import FuzzyMultiDict
+print(d.get("ppl pnk ld"))
+# [5]
 
-d = FuzzyMultiDict()
-
-d["apple"] = "apple"
-d["apple red delicious"] = "apple red delicious"
-d["apple fuji"] = "apple fuji"
-d["apple granny smith"] = "apple granny smith"
-d["apple honeycrisp"] = "apple honeycrisp"
-d["apple golden delicious"] = "apple golden delicious"
-d["apple pink lady"] = "apple pink lady"
-
-d.get("apple") 
-# [{'value': 'apple', 'key': 'apple', 'correction': [], 'leaves': []}]
-
-d.search("apple") 
-# ['apple', 'apple red delicious', 'apple fuji', 'apple granny smith',
-#  'apple golden delicious', 'apple honeycrisp', 'apple pink lady']
-
-d.search("apl") 
-# ['apple', 'apple red delicious', 'apple fuji', 'apple granny smith', 
-#  'apple golden delicious', 'apple honeycrisp', 'apple pink lady']
+print(d.get("juice"))
+# []
 
 ```

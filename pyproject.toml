@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fuzzy-multi-dict"
-version = "0.0.7"
+version = "0.1.0"
 description = "`fuzzy-multi-dict` is a module that provides a hight-flexible structure for storing and accessing information by a string key."
 authors = [ "Tetiana Lytvynenko <lytvynenkotv@gmail.com>", "Denis Shchutskyi <denisshchutskyi@gmail.com>"]
 license = "LICENSE"
@@ -8,8 +8,8 @@ readme = "README.md"
 packages = [{include = "fuzzy_multi_dict"}]
 
 [tool.poetry.dependencies]
-python = "^3.9"
-dill = "0.3.7"
+python = "^3.11"
+dill = "0.3.9"
 
 [tool.poetry.group.lint.dependencies]
 pre-commit = "^3.4.0"
@@ -21,7 +21,7 @@ isort = "^5.12.0"
 [build-system]
 requires = [
     "poetry-core",
-    "dill>=0.3.7"
+    "dill>=0.3.9"
 ]
 build-backend = "poetry.core.masonry.api"
 
